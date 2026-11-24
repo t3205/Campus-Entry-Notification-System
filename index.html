@@ -116,32 +116,12 @@
             <!-- Dropdown menu -->
             <div id="userDropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 z-50 text-slate-700 py-2 border border-slate-100">
               <div class="px-4 py-2 border-b border-slate-100 bg-slate-50">
-                <p class="text-xs font-semibold text-slate-500">切換身分測試權限 (Demo Login)</p>
+                <p class="text-xs font-semibold text-slate-500">切換帳號 / 系統管理員 (Demo Switcher)</p>
               </div>
 
-              <a href="#" onclick="switchAccount('t3')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
-                <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mr-3">德</div>
-                <div>
-                  <div class="font-semibold text-slate-800">張明德主任 <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded ml-1">全部權限</span></div>
-                  <div class="text-slate-500 text-[11px]">總務處 / mingte.chang@school.edu.tw</div>
-                </div>
-              </a>
-
-              <a href="#" onclick="switchAccount('t1')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
-                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-3">華</div>
-                <div>
-                  <div class="font-semibold text-slate-800">陳國華老師 <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded ml-1">全部權限</span></div>
-                  <div class="text-slate-500 text-[11px]">教務處 / kuohua.chen@school.edu.tw</div>
-                </div>
-              </a>
-
-              <a href="#" onclick="switchAccount('t2')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
-                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold mr-3">婷</div>
-                <div>
-                  <div class="font-semibold text-slate-800">林雅婷老師 <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded ml-1">僅限填寫</span></div>
-                  <div class="text-slate-500 text-[11px]">學務處 / yating.lin@school.edu.tw</div>
-                </div>
-              </a>
+              <div id="quickAccountList" class="max-h-60 overflow-y-auto">
+                <!-- Dynamically populated from imported teachers + Admin -->
+              </div>
 
               <a href="#" onclick="switchAccount('guest')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition border-t border-slate-100">
                 <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold mr-3">未</div>
@@ -153,7 +133,7 @@
 
               <div class="p-2 border-t border-slate-100">
                 <button onclick="openCustomLoginModal()" class="w-full text-center bg-slate-900 text-white text-xs py-1.5 rounded-lg hover:bg-slate-800 font-medium">
-                  <i class="fa-brands fa-google mr-1"></i> Google / Gmail 自訂登入
+                  <i class="fa-brands fa-google mr-1"></i> Google / Gmail 登入驗證
                 </button>
               </div>
             </div>
@@ -836,10 +816,9 @@
         </div>
 
         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
-          <p class="font-semibold text-slate-700 mb-1">快速測試信箱列表：</p>
-          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='kuohua.chen@school.edu.tw'">• kuohua.chen@school.edu.tw (陳國華 / 教務處 / 全部權限)</p>
-          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='yating.lin@school.edu.tw'">• yating.lin@school.edu.tw (林雅婷 / 學務處 / 僅限填寫)</p>
-          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='mingte.chang@school.edu.tw'">• mingte.chang@school.edu.tw (張明德 / 總務處 / 全部權限)</p>
+          <p class="font-semibold text-slate-700 mb-1">系統預設管理員帳號：</p>
+          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='admin@school.edu.tw'">• admin@school.edu.tw (系統管理員 / 全部權限)</p>
+          <p class="text-[11px] text-slate-400 mt-1">※ 其他老師請先由管理員於「資料管理」匯入名冊後，即可使用各自 Gmail 登入。</p>
         </div>
 
         <div class="pt-2 flex space-x-2">
@@ -966,111 +945,44 @@
     let auth = null;
     let isFirebaseReady = false;
 
-    // Local state stores
+    // Local state stores (Clean state - No pre-populated fake data)
     window.AppState = {
       currentUser: {
-        id: 't3',
-        name: '張明德主任',
-        dept: '總務處',
-        email: 'mingte.chang@school.edu.tw',
+        id: 'admin',
+        name: '系統管理員',
+        dept: '管理中心',
+        email: 'admin@school.edu.tw',
         role: 'full', // 'full' or 'fill'
         isGuest: false
       },
-      currentTab: 'fill',
+      currentTab: 'manage',
       displayTimeMode: 'daily', // 'daily', 'monthly', 'yearly', 'all'
       teachers: [
-        { id: 't1', name: '陳國華 老師', dept: '教務處', email: 'kuohua.chen@school.edu.tw', role: 'full' },
-        { id: 't2', name: '林雅婷 老師', dept: '學務處', email: 'yating.lin@school.edu.tw', role: 'fill' },
-        { id: 't3', name: '張明德 主任', dept: '總務處', email: 'mingte.chang@school.edu.tw', role: 'full' },
-        { id: 't4', name: '王美玲 老師', dept: '輔導室', email: 'meiling.wang@school.edu.tw', role: 'fill' },
-        { id: 't5', name: '李建宏 組長', dept: '資訊組', email: 'chienhong.lee@school.edu.tw', role: 'full' },
-        { id: 't6', name: '黃志強 主任', dept: '校長室', email: 'chihchiang.huang@school.edu.tw', role: 'full' },
-        { id: 't7', name: '鄭麗芬 主任', dept: '人事室', email: 'lifen.cheng@school.edu.tw', role: 'fill' },
+        { id: 'admin', name: '系統管理員', dept: '管理中心', email: 'admin@school.edu.tw', role: 'full' }
       ],
       visitors: [],
       audioAlertEnabled: true,
       activeImportTargetPage: null
     };
 
-    // Pre-populate mock visitors spanning multiple dates/months
-    function generateMockVisitors() {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const nowTime = new Date().toISOString().slice(11, 16);
-      
-      const sampleUnits = [
-        { unit: '國家教育研究院', name: '張副研究員', count: 2, dept: '教務處', teacher: '陳國華 老師', plate: 'ABC-1234', purpose: '課綱實驗課程輔導評鑑會議' },
-        { unit: '聯華電子文教基金會', name: '李專務理', count: 3, dept: '資訊組', teacher: '李建宏 組長', plate: 'EV-8888', purpose: '捐贈偏鄉數位教室設備簽約' },
-        { unit: '彰化縣政府教育處', name: '林督學', count: 1, dept: '校長室', teacher: '黃志強 主任', plate: 'KAA-5678', purpose: '校務發展成果視導巡查' },
-        { unit: '學生家長委員會', name: '許常務委員', count: 4, dept: '學務處', teacher: '林雅婷 老師', plate: '無 (步行)', purpose: '討論校慶運動會籌備進度' },
-        { unit: '東方機電工程行', name: '陳技師', count: 2, dept: '總務處', teacher: '張明德 主任', plate: 'BKN-9921', purpose: '高壓變電箱例行保養會勘' },
-        { unit: '巨匠電腦資訊', name: '趙講師', count: 1, dept: '資訊組', teacher: '李建宏 組長', plate: 'RM-3312', purpose: '教師 AI 研習課程主講' }
-      ];
-
-      const records = [];
-      
-      // Generate records for Today
-      sampleUnits.forEach((item, idx) => {
-        const hourStr = (8 + idx * 1.5).toFixed(0).padStart(2, '0');
-        const status = idx === 0 ? 'checked_in' : (idx === 1 ? 'checked_out' : 'pending');
-        
-        records.push({
-          id: 'v_' + Date.now() + '_' + idx,
-          teacherName: item.teacher,
-          teacherDept: item.dept,
-          teacherEmail: 'teacher' + idx + '@school.edu.tw',
-          expectedTime: `${todayStr}T${hourStr}:30`,
-          unit: item.unit,
-          visitorName: item.name,
-          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
-          plateNumber: item.plate,
-          visitorCount: item.count,
-          purpose: item.purpose,
-          status: status,
-          checkInTime: status !== 'pending' ? `${todayStr} ${hourStr}:25` : null,
-          checkOutTime: status === 'checked_out' ? `${todayStr} ${parseInt(hourStr)+1}:40` : null,
-          createdAt: new Date().toISOString()
-        });
-      });
-
-      // Generate records for past days in 2026 / 2025
-      const pastDates = ['2026-03-10', '2026-03-15', '2026-02-18', '2026-01-20', '2025-11-12'];
-      pastDates.forEach((pDate, pIdx) => {
-        records.push({
-          id: 'v_past_' + pIdx,
-          teacherName: '陳國華 老師',
-          teacherDept: '教務處',
-          teacherEmail: 'kuohua.chen@school.edu.tw',
-          expectedTime: `${pDate}T10:00`,
-          unit: '跨校領域研習團 ' + (pIdx + 1),
-          visitorName: '劉參訪代表',
-          phone: '0911-222-333',
-          plateNumber: 'QQ-7788',
-          visitorCount: 5 + pIdx,
-          purpose: '跨校觀課與備課交流活動',
-          status: 'checked_out',
-          checkInTime: `${pDate} 09:50`,
-          checkOutTime: `${pDate} 12:10`,
-          createdAt: new Date(pDate).toISOString()
-        });
-      });
-
-      return records;
-    }
-
     // Initialize LocalStorage sync & Firebase
     window.addEventListener('DOMContentLoaded', async () => {
-      // Load saved visitors or set mock data
-      const savedVisitors = localStorage.getItem('campus_visitors');
+      // Load saved visitors (starts empty if none saved)
+      const savedVisitors = localStorage.getItem('campus_visitors_clean');
       if (savedVisitors) {
-        try { AppState.visitors = JSON.parse(savedVisitors); } catch(e) { AppState.visitors = generateMockVisitors(); }
+        try { AppState.visitors = JSON.parse(savedVisitors); } catch(e) { AppState.visitors = []; }
       } else {
-        AppState.visitors = generateMockVisitors();
-        saveVisitorsToStorage();
+        AppState.visitors = [];
       }
 
-      const savedTeachers = localStorage.getItem('campus_teachers');
+      const savedTeachers = localStorage.getItem('campus_teachers_clean');
       if (savedTeachers) {
-        try { AppState.teachers = JSON.parse(savedTeachers); } catch(e) {}
+        try { 
+          const parsed = JSON.parse(savedTeachers);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            AppState.teachers = parsed;
+          }
+        } catch(e) {}
       }
 
       // Initialize Firebase if config exists
@@ -1103,20 +1015,22 @@
       document.getElementById('formExpectedTime').value = `${today}T09:00`;
 
       // Initial Render
+      renderQuickAccountDropdown();
       updateUserIdentityUI();
       renderDisplayTable();
       renderTeacherTable();
       initAnalyticsCharts();
+      switchTab('manage'); // Start at Data Management so Admin can import teacher & visitor data first
       
       // Auto QR Code Render
       generateQRCodeCanvas();
     });
 
     function saveVisitorsToStorage() {
-      localStorage.setItem('campus_visitors', JSON.stringify(AppState.visitors));
+      localStorage.setItem('campus_visitors_clean', JSON.stringify(AppState.visitors));
     }
     function saveTeachersToStorage() {
-      localStorage.setItem('campus_teachers', JSON.stringify(AppState.teachers));
+      localStorage.setItem('campus_teachers_clean', JSON.stringify(AppState.teachers));
     }
 
     // Firebase Firestore Listener (Mandatory Rule 1: /artifacts/{appId}/public/data/visitors)
@@ -1143,6 +1057,7 @@
           AppState.teachers = loaded;
           saveTeachersToStorage();
           renderTeacherTable();
+          renderQuickAccountDropdown();
         }
       }, (err) => console.log("Firestore teacher sync error:", err));
     }
@@ -1304,8 +1219,37 @@
     }
 
     function toggleUserDropdown() {
+      renderQuickAccountDropdown();
       const menu = document.getElementById('userDropdown');
       menu.classList.toggle('hidden');
+    }
+
+    function renderQuickAccountDropdown() {
+      const container = document.getElementById('quickAccountList');
+      if (!container) return;
+      container.innerHTML = '';
+
+      window.AppState.teachers.forEach(t => {
+        const isFull = t.role === 'full';
+        const badgeHtml = isFull 
+          ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded ml-1">全部權限</span>`
+          : `<span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded ml-1">僅限填寫</span>`;
+        
+        const item = document.createElement('a');
+        item.href = '#';
+        item.onclick = (e) => { e.preventDefault(); switchAccount(t.id); };
+        item.className = 'flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition';
+        item.innerHTML = `
+          <div class="w-8 h-8 rounded-full ${isFull ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'} flex items-center justify-center font-bold mr-3 shrink-0">
+            ${escapeHtml(t.name.slice(0, 1))}
+          </div>
+          <div class="overflow-hidden">
+            <div class="font-semibold text-slate-800 truncate">${escapeHtml(t.name)} ${badgeHtml}</div>
+            <div class="text-slate-500 text-[11px] truncate">${escapeHtml(t.dept)} / ${escapeHtml(t.email)}</div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
     }
 
     function switchAccount(teacherId) {
@@ -1376,7 +1320,7 @@
       };
 
       window.AppState.visitors.unshift(newRecord);
-      localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+      localStorage.setItem('campus_visitors_clean', JSON.stringify(window.AppState.visitors));
       if (window.syncVisitorToCloud) window.syncVisitorToCloud(newRecord);
 
       showToast('通報成功！', `訪客「${visitorName} (${unit})」資訊已即時傳送至警衛室。`, 'success');
@@ -1392,11 +1336,7 @@
 
       // If user has full access, offer to jump to Display Tab
       if (window.AppState.currentUser.role === 'full') {
-        setTimeout(() => {
-          if (confirm('通報已送出！是否立即前往「資料顯示 (警衛室監控)」分頁查看該筆紀錄？')) {
-            switchTab('display');
-          }
-        }, 300);
+        switchTab('display');
       }
     }
 
@@ -1593,7 +1533,7 @@
           record.checkOutTime = null;
         }
 
-        localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+        localStorage.setItem('campus_visitors_clean', JSON.stringify(window.AppState.visitors));
         if (window.syncVisitorToCloud) window.syncVisitorToCloud(record);
         renderDisplayTable();
       }
@@ -1813,10 +1753,14 @@
     }
 
     function toggleTeacherPermission(id) {
+      if (id === 'admin') {
+        showToast('無法變更', '系統管理員必須保留全部功能權限。', 'warning');
+        return;
+      }
       const teacher = window.AppState.teachers.find(t => t.id === id);
       if (teacher) {
         teacher.role = teacher.role === 'full' ? 'fill' : 'full';
-        localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+        localStorage.setItem('campus_teachers_clean', JSON.stringify(window.AppState.teachers));
         if (window.syncTeacherToCloud) window.syncTeacherToCloud(teacher);
         
         // If updating current logged user
@@ -1826,6 +1770,7 @@
         }
 
         renderTeacherTable();
+        renderQuickAccountDropdown();
         showToast('權限變更成功', `已將「${teacher.name}」權限更新為：${teacher.role === 'full' ? '全部權限' : '僅限資料填寫'}`, 'success');
       }
     }
@@ -1862,41 +1807,44 @@
       const id = document.getElementById('editTeacherId').value;
       const name = document.getElementById('modalTeacherName').value.trim();
       const dept = document.getElementById('modalTeacherDept').value;
-      const email = document.getElementById('modalTeacherEmail').value.trim();
+      const email = document.getElementById('modalTeacherEmail').value.trim().toLowerCase();
       const role = document.getElementById('modalTeacherRole').value;
 
       if (id) {
-        const teacher = window.AppState.teachers.find(t => t.id === id);
-        if (teacher) {
-          teacher.name = name;
-          teacher.dept = dept;
-          teacher.email = email;
-          teacher.role = role;
-          if (window.syncTeacherToCloud) window.syncTeacherToCloud(teacher);
+        const existing = window.AppState.teachers.find(t => t.id === id);
+        if (existing) {
+          existing.name = name;
+          existing.dept = dept;
+          existing.email = email;
+          if (existing.id !== 'admin') existing.role = role;
+          if (window.syncTeacherToCloud) window.syncTeacherToCloud(existing);
         }
       } else {
-        const newTeacher = {
-          id: 't_' + Date.now(),
-          name, dept, email, role
-        };
-        window.AppState.teachers.push(newTeacher);
-        if (window.syncTeacherToCloud) window.syncTeacherToCloud(newTeacher);
+        const newT = { id: 't_' + Date.now(), name, dept, email, role };
+        window.AppState.teachers.push(newT);
+        if (window.syncTeacherToCloud) window.syncTeacherToCloud(newT);
       }
 
-      localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+      localStorage.setItem('campus_teachers_clean', JSON.stringify(window.AppState.teachers));
       renderTeacherTable();
+      renderQuickAccountDropdown();
       closeAddTeacherModal();
       showToast('儲存成功', `教職員「${name}」資料已更新。`, 'success');
     }
 
     function deleteTeacher(id) {
+      if (id === 'admin') {
+        showToast('無法刪除', '系統預設管理員帳號無法刪除。', 'warning');
+        return;
+      }
       const teacher = window.AppState.teachers.find(t => t.id === id);
-      if (teacher && confirm(`確定要刪除「${teacher.name}」的系統存取資料與權限嗎？`)) {
+      if (teacher) {
         window.AppState.teachers = window.AppState.teachers.filter(t => t.id !== id);
-        localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+        localStorage.setItem('campus_teachers_clean', JSON.stringify(window.AppState.teachers));
         if (window.deleteTeacherFromCloud) window.deleteTeacherFromCloud(id);
         renderTeacherTable();
-        showToast('刪除成功', '教職員權限紀錄已刪除。', 'info');
+        renderQuickAccountDropdown();
+        showToast('刪除成功', `教職員「${teacher.name}」權限紀錄已刪除。`, 'info');
       }
     }
 
@@ -1909,27 +1857,49 @@
 
     function processBulkTeacherImport() {
       const text = document.getElementById('bulkCsvTextarea').value.trim();
-      if (!text) {
-        showToast('警告', '請貼上 CSV 文字內容或選擇檔案。', 'warning');
+      const fileInput = document.getElementById('bulkCsvFileInput');
+      
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          parseAndImportTeacherCsv(e.target.result);
+          fileInput.value = '';
+        };
+        reader.readAsText(fileInput.files[0]);
         return;
       }
 
-      const lines = text.split('\n');
+      if (!text) {
+        showToast('警告', '請貼上 CSV 文字內容或選擇本機 CSV 檔案。', 'warning');
+        return;
+      }
+
+      parseAndImportTeacherCsv(text);
+    }
+
+    function parseAndImportTeacherCsv(csvText) {
+      const lines = csvText.split('\n');
       let count = 0;
-      lines.forEach(line => {
-        const parts = line.split(',').map(p => p.trim());
+      lines.forEach((line, index) => {
+        const cleanLine = line.trim();
+        if (!cleanLine) return;
+        const parts = cleanLine.split(',').map(p => p.trim().replace(/^"|"$/g, ''));
+        // Skip header row if detected
+        if (index === 0 && (parts[0] === '姓名' || parts[2]?.toLowerCase().includes('gmail'))) return;
+
         if (parts.length >= 3) {
           const name = parts[0];
-          const dept = parts[1];
-          const email = parts[2];
-          const role = (parts[3] && parts[3].toLowerCase() === 'full') ? 'full' : 'fill';
+          const dept = parts[1] || '教務處';
+          const email = parts[2].toLowerCase();
+          const roleRaw = (parts[3] || '').toLowerCase();
+          const role = (roleRaw === 'full' || roleRaw === '全部權限' || roleRaw === '全部') ? 'full' : 'fill';
 
-          if (name && email) {
-            const existing = window.AppState.teachers.find(t => t.email === email);
+          if (name && email && email.includes('@')) {
+            const existing = window.AppState.teachers.find(t => t.email.toLowerCase() === email);
             if (existing) {
               existing.name = name;
               existing.dept = dept;
-              existing.role = role;
+              if (existing.id !== 'admin') existing.role = role;
               if (window.syncTeacherToCloud) window.syncTeacherToCloud(existing);
             } else {
               const newT = { id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name, dept, email, role };
@@ -1941,8 +1911,10 @@
         }
       });
 
-      localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+      localStorage.setItem('campus_teachers_clean', JSON.stringify(window.AppState.teachers));
       renderTeacherTable();
+      renderQuickAccountDropdown();
+      document.getElementById('bulkCsvTextarea').value = '';
       closeBulkImportTeachersModal();
       showToast('批次匯入完成', `已成功匯入與更新 ${count} 筆全校教師權限資料。`, 'success');
     }
@@ -1974,7 +1946,7 @@
             const data = JSON.parse(content);
             if (Array.isArray(data)) {
               window.AppState.visitors = data.concat(window.AppState.visitors);
-              localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+              localStorage.setItem('campus_visitors_clean', JSON.stringify(window.AppState.visitors));
               showToast('JSON 匯入成功', `成功匯入 ${data.length} 筆紀錄。`, 'success');
               renderDisplayTable();
               updateAnalyticsCharts();
@@ -1986,7 +1958,7 @@
             for(let i=1; i<lines.length; i++) {
               const line = lines[i].trim();
               if (!line) continue;
-              const cols = line.split(',');
+              const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
               if (cols.length >= 4) {
                 const rec = {
                   id: 'v_imp_' + Date.now() + '_' + i,
@@ -2000,6 +1972,8 @@
                   visitorCount: parseInt(cols[7]) || 1,
                   purpose: cols[8] || '無備註',
                   status: 'pending',
+                  checkInTime: null,
+                  checkOutTime: null,
                   createdAt: new Date().toISOString()
                 };
                 window.AppState.visitors.unshift(rec);
@@ -2007,7 +1981,7 @@
                 importedCount++;
               }
             }
-            localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+            localStorage.setItem('campus_visitors_clean', JSON.stringify(window.AppState.visitors));
             showToast('CSV 匯入成功', `已從檔案成功匯入 ${importedCount} 筆資料。`, 'success');
             renderDisplayTable();
             updateAnalyticsCharts();
@@ -2112,18 +2086,17 @@
       const teacher = window.AppState.teachers.find(t => t.email.toLowerCase() === email);
       if (teacher) {
         window.AppState.currentUser = { ...teacher, isGuest: false };
-        showToast('Gmail 身分驗證成功', `歡迎！已辨識身分：${teacher.name} (${teacher.dept})`, 'success');
+        showToast('Gmail 身分驗證成功', `歡迎！已辨識身分：${teacher.name} (${teacher.dept})，權限：${teacher.role === 'full' ? '全部功能' : '僅限資料填寫'}`, 'success');
       } else {
-        // Unknown email -> Guest teacher
+        showToast('查無此教師信箱', '此 Gmail 尚未在「資料管理」名冊中，將以「未登入／僅限資料填寫」身分進入。', 'warning');
         window.AppState.currentUser = {
-          id: 'guest_teacher',
-          name: email.split('@')[0],
-          dept: '教務處',
+          id: 'guest',
+          name: '未登入 / 訪客掃描',
+          dept: '',
           email: email,
           role: 'fill',
-          isGuest: false
+          isGuest: true
         };
-        showToast('身分登入完成', `已登入：${email}`, 'info');
       }
 
       updateUserIdentityUI();
