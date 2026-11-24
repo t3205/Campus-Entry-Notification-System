@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校園訪客與警衛室通知系統 | Campus Visitor Notification System</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- QRCode.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#16a34a',
+              600: '#15803d',
+              700: '#15803d',
+              800: '#166534',
+              900: '#14532d',
+            },
+            navy: {
+              800: '#1e293b',
+              900: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    .tab-active {
+      border-bottom: 3px solid #16a34a;
+      color: #15803d;
+      font-weight: 600;
+      background-color: #f0fdf4;
+    }
+    /* Custom scrollbar for tables */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- TOP HEADER & ROLE SWITCHER NAVBAR -->
+  <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- App Title / Brand -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xl shadow">
+            <i class="fa-solid fa-school-flag"></i>
+          </div>
+          <div>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight text-white flex items-center gap-2">
+              校園訪客與警衛室通知系統
+              <span class="text-xs bg-emerald-700 text-emerald-100 px-2 py-0.5 rounded-full font-normal hidden sm:inline-block">即時連線中</span>
+            </h1>
+            <p class="text-xs text-slate-400">Campus Visitor & Guardhouse Notification System</p>
+          </div>
+        </div>
+
+        <!-- Right Side Quick Actions & Account Switcher -->
+        <div class="flex items-center space-x-2 sm:space-x-4">
+          
+          <!-- Quick QR Code Actions -->
+          <button onclick="openQRModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm px-3 py-1.5 rounded-lg border border-slate-700 flex items-center space-x-1.5 transition">
+            <i class="fa-solid fa-qrcode text-emerald-400"></i>
+            <span class="hidden md:inline">顯示掃描報到</span> QR Code
+          </button>
+          
+          <button onclick="simulateQRScan()" class="bg-amber-600/90 hover:bg-amber-600 text-white text-xs sm:text-sm px-3 py-1.5 rounded-lg font-medium flex items-center space-x-1.5 transition shadow-sm">
+            <i class="fa-solid fa-camera-retro"></i>
+            <span class="hidden sm:inline">模擬掃描 QR Code</span>
+          </button>
+
+          <!-- User Identity Selector (Demo Switcher) -->
+          <div class="relative inline-block text-left">
+            <button onclick="toggleUserDropdown()" class="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 text-xs sm:text-sm transition">
+              <div class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-slate-900 font-bold text-xs" id="currentUserAvatar">
+                官
+              </div>
+              <div class="text-left hidden sm:block">
+                <div class="font-medium text-xs text-slate-200" id="currentUserName">張明德主任 (總務處)</div>
+                <div class="text-[10px] text-emerald-400 font-semibold" id="currentUserRoleBadge">全部權限</div>
+              </div>
+              <i class="fa-solid fa-chevron-down text-slate-400 text-xs"></i>
+            </button>
+
+            <!-- Dropdown menu -->
+            <div id="userDropdown" class="hidden absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl ring-1 ring-black ring-opacity-5 z-50 text-slate-700 py-2 border border-slate-100">
+              <div class="px-4 py-2 border-b border-slate-100 bg-slate-50">
+                <p class="text-xs font-semibold text-slate-500">切換身分測試權限 (Demo Login)</p>
+              </div>
+
+              <a href="#" onclick="switchAccount('t3')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
+                <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold mr-3">德</div>
+                <div>
+                  <div class="font-semibold text-slate-800">張明德主任 <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded ml-1">全部權限</span></div>
+                  <div class="text-slate-500 text-[11px]">總務處 / mingte.chang@school.edu.tw</div>
+                </div>
+              </a>
+
+              <a href="#" onclick="switchAccount('t1')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
+                <div class="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold mr-3">華</div>
+                <div>
+                  <div class="font-semibold text-slate-800">陳國華老師 <span class="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded ml-1">全部權限</span></div>
+                  <div class="text-slate-500 text-[11px]">教務處 / kuohua.chen@school.edu.tw</div>
+                </div>
+              </a>
+
+              <a href="#" onclick="switchAccount('t2')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition">
+                <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center font-bold mr-3">婷</div>
+                <div>
+                  <div class="font-semibold text-slate-800">林雅婷老師 <span class="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded ml-1">僅限填寫</span></div>
+                  <div class="text-slate-500 text-[11px]">學務處 / yating.lin@school.edu.tw</div>
+                </div>
+              </a>
+
+              <a href="#" onclick="switchAccount('guest')" class="flex items-center px-4 py-2.5 text-xs hover:bg-slate-100 transition border-t border-slate-100">
+                <div class="w-8 h-8 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center font-bold mr-3">未</div>
+                <div>
+                  <div class="font-semibold text-slate-800">未登入 / 訪客 QR 掃描</div>
+                  <div class="text-slate-500 text-[11px]">無 Gmail 綁定 (手動輸入通報老師資料)</div>
+                </div>
+              </a>
+
+              <div class="p-2 border-t border-slate-100">
+                <button onclick="openCustomLoginModal()" class="w-full text-center bg-slate-900 text-white text-xs py-1.5 rounded-lg hover:bg-slate-800 font-medium">
+                  <i class="fa-brands fa-google mr-1"></i> Google / Gmail 自訂登入
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN NAVIGATION TABS BAR -->
+    <nav class="bg-white border-b border-slate-200 shadow-sm text-slate-600">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-2 sm:space-x-4 text-sm font-medium" id="navigationTabs">
+        <!-- Tab 1 -->
+        <button id="tabBtn-fill" onclick="switchTab('fill')" class="py-3 px-4 flex items-center space-x-2 whitespace-nowrap transition border-b-2 border-transparent hover:text-emerald-600">
+          <i class="fa-solid fa-pen-to-square text-base"></i>
+          <span>資料填寫 (訪客通報)</span>
+        </button>
+        <!-- Tab 2 -->
+        <button id="tabBtn-display" onclick="switchTab('display')" class="py-3 px-4 flex items-center space-x-2 whitespace-nowrap transition border-b-2 border-transparent hover:text-emerald-600">
+          <i class="fa-solid fa-desktop text-base"></i>
+          <span>資料顯示 (警衛室監控)</span>
+          <span id="pendingCountBadge" class="ml-1 bg-amber-500 text-white text-xs px-2 py-0.5 rounded-full hidden font-bold">0</span>
+        </button>
+        <!-- Tab 3 -->
+        <button id="tabBtn-stats" onclick="switchTab('stats')" class="py-3 px-4 flex items-center space-x-2 whitespace-nowrap transition border-b-2 border-transparent hover:text-emerald-600">
+          <i class="fa-solid fa-chart-pie text-base"></i>
+          <span>資料統計 (來訪分析)</span>
+        </button>
+        <!-- Tab 4 -->
+        <button id="tabBtn-manage" onclick="switchTab('manage')" class="py-3 px-4 flex items-center space-x-2 whitespace-nowrap transition border-b-2 border-transparent hover:text-emerald-600">
+          <i class="fa-solid fa-users-gear text-base"></i>
+          <span>資料管理 (教師與權限)</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- GLOBAL AUDIO ALERT INDICATOR FOR GUARDHOUSE -->
+    <div id="guardhouseAudioBanner" class="hidden mb-4 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-xl flex items-center justify-between shadow-sm">
+      <div class="flex items-center space-x-3 text-xs sm:text-sm">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+        </span>
+        <span><strong>警衛室即時廣播模式：</strong> 系統維持自動更新，有新來訪登記時會自動警報通知。</span>
+      </div>
+      <button onclick="toggleAudioNotice()" id="audioNoticeBtn" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg">
+        <i class="fa-solid fa-volume-high mr-1"></i> 提示聲：開啟
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 1: 資料填寫 (VISITOR NOTIFICATION FORM) -->
+    <!-- ========================================== -->
+    <section id="tabContent-fill" class="space-y-6">
+      
+      <!-- Top Bar: Quick Import/Export + Info Banner -->
+      <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-list text-emerald-600"></i> 來訪訪客線上通報表單
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            請預先填寫來訪單位與訪客資訊，警衛室可提前整備登記，加速訪客換證入校流程。
+          </p>
+        </div>
+        
+        <!-- Import / Export Actions for Page 1 -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="quickFillSampleForm()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> 填入範例資料
+          </button>
+          <button onclick="triggerFileInput('import-fill')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-import"></i> 匯入預約資料
+          </button>
+          <button onclick="exportData('fill')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-export"></i> 匯出本頁紀錄
+          </button>
+        </div>
+      </div>
+
+      <!-- Identity Status Info Box -->
+      <div id="identityBanner" class="p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-2">
+        <div class="flex items-center space-x-3 text-xs sm:text-sm">
+          <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+            <i class="fa-solid fa-circle-check"></i>
+          </div>
+          <div>
+            <span class="font-bold" id="bannerTeacherName">陳國華 老師</span> 
+            <span class="text-emerald-700 font-normal">（所屬處室：<span id="bannerTeacherDept" class="font-semibold">教務處</span>）</span>
+            <span class="ml-2 text-[11px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-medium">Gmail 已自動對應</span>
+            <div class="text-xs text-emerald-700/90 mt-0.5">系統已為您自動填入通報教師資料，您僅需填寫下方訪客資訊即可。</div>
+          </div>
+        </div>
+        <button onclick="openCustomLoginModal()" class="text-xs text-emerald-800 hover:underline shrink-0 font-medium">
+          變更身分 / 重新登入 &rarr;
+        </button>
+      </div>
+
+      <!-- Visitor Notification Form Card -->
+      <form id="visitorForm" onsubmit="handleFormSubmit(event)" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+        
+        <!-- Section: Teacher Info (Auto-filled / Editable based on login) -->
+        <div>
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-slate-100 pb-2">
+            <i class="fa-solid fa-user-tie text-emerald-600"></i> 一、通報教職員資訊
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">通報老師姓名 <span class="text-red-500">*</span></label>
+              <input type="text" id="formTeacherName" required placeholder="請輸入姓名" 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-slate-50 transition">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">所屬處室 <span class="text-red-500">*</span></label>
+              <select id="formTeacherDept" required 
+                      class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-slate-50 transition">
+                <option value="">-- 請選擇處室 --</option>
+                <option value="教務處">教務處</option>
+                <option value="學務處">學務處</option>
+                <option value="總務處">總務處</option>
+                <option value="輔導室">輔導室</option>
+                <option value="資訊組">資訊組</option>
+                <option value="校長室">校長室</option>
+                <option value="人事室">人事室</option>
+                <option value="會計室">會計室</option>
+                <option value="圖書館">圖書館</option>
+                <option value="幼兒園">幼兒園</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Visitor Info -->
+        <div>
+          <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2 border-b border-slate-100 pb-2">
+            <i class="fa-solid fa-address-card text-emerald-600"></i> 二、來訪訪客與單位資料
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">預計來訪日期與時間 <span class="text-red-500">*</span></label>
+              <input type="datetime-local" id="formExpectedTime" required 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">來訪單位 / 公司 / 機構 <span class="text-red-500">*</span></label>
+              <input type="text" id="formUnit" required placeholder="例如: 國家教育研究院 / 家長會 / 聯華電子" 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">主要訪客姓名 <span class="text-red-500">*</span></label>
+              <input type="text" id="formVisitorName" required placeholder="例如: 王大明 代表" 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">聯絡電話 <span class="text-red-500">*</span></label>
+              <input type="tel" id="formPhone" required placeholder="例如: 0912-345-678" 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">入校車牌號碼 <span class="text-slate-400 font-normal">(無車輛請留空)</span></label>
+              <input type="text" id="formPlateNumber" placeholder="例如: ABC-1234 或 徒步入校" 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">總來訪人數 <span class="text-red-500">*</span></label>
+              <input type="number" id="formVisitorCount" min="1" max="500" value="1" required 
+                     class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Section: Purpose & Notes -->
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">來訪事由與備註說明</label>
+          <textarea id="formPurpose" rows="3" placeholder="例如: 參加 10:00 雙語教育課程研討會，需指引至三樓會議室..." 
+                    class="w-full px-3.5 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm bg-white transition"></textarea>
+        </div>
+
+        <!-- Submit Button Row -->
+        <div class="pt-2 flex items-center justify-end space-x-3">
+          <button type="button" onclick="resetForm()" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-100 text-sm font-medium transition">
+            <i class="fa-solid fa-rotate-left mr-1"></i> 清空重填
+          </button>
+          <button type="submit" class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-sm shadow-md transition flex items-center space-x-2">
+            <i class="fa-solid fa-paper-plane"></i>
+            <span>即時送出通報給警衛室</span>
+          </button>
+        </div>
+
+      </form>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: 資料顯示 (GUARDHOUSE LIVE MONITOR)   -->
+    <!-- ========================================== -->
+    <section id="tabContent-display" class="space-y-6 hidden">
+      
+      <!-- Top Action & Filter Dashboard -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-emerald-600"></i> 警衛室來訪即時顯示與動態紀錄
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              可點擊切換每日、每月、每年來訪資料，警衛人員可直接執行入校／離校快速註記。
+            </p>
+          </div>
+
+          <!-- Page 2 Import/Export Actions -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="triggerFileInput('import-display')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-import"></i> 匯入來訪紀錄
+            </button>
+            <button onclick="exportData('display')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-export"></i> 匯出篩選紀錄
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 pt-3 border-t border-slate-100">
+          
+          <!-- Time Scope Buttons -->
+          <div class="lg:col-span-4 flex rounded-xl border border-slate-200 p-1 bg-slate-50 text-xs font-semibold">
+            <button onclick="setDisplayTimeMode('daily')" id="timeModeBtn-daily" class="flex-1 py-1.5 rounded-lg transition text-center bg-white shadow-sm text-slate-800">
+              <i class="fa-regular fa-calendar-day mr-1"></i> 每日來訪
+            </button>
+            <button onclick="setDisplayTimeMode('monthly')" id="timeModeBtn-monthly" class="flex-1 py-1.5 rounded-lg transition text-center text-slate-500 hover:text-slate-800">
+              <i class="fa-regular fa-calendar-week mr-1"></i> 每月來訪
+            </button>
+            <button onclick="setDisplayTimeMode('yearly')" id="timeModeBtn-yearly" class="flex-1 py-1.5 rounded-lg transition text-center text-slate-500 hover:text-slate-800">
+              <i class="fa-solid fa-calendar mr-1"></i> 每年來訪
+            </button>
+            <button onclick="setDisplayTimeMode('all')" id="timeModeBtn-all" class="flex-1 py-1.5 rounded-lg transition text-center text-slate-500 hover:text-slate-800">
+              全部
+            </button>
+          </div>
+
+          <!-- Dynamic Picker Field based on mode -->
+          <div class="lg:col-span-3">
+            <input type="date" id="displayDatePicker" onchange="renderDisplayTable()" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white">
+            <input type="month" id="displayMonthPicker" onchange="renderDisplayTable()" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white hidden">
+            <input type="number" id="displayYearPicker" placeholder="請輸入年份 e.g. 2026" min="2020" max="2035" onchange="renderDisplayTable()" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white hidden">
+          </div>
+
+          <!-- Status Filter -->
+          <div class="lg:col-span-2">
+            <select id="displayStatusFilter" onchange="renderDisplayTable()" class="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white">
+              <option value="all">所有狀態 (全部)</option>
+              <option value="pending">待入校 (Pending)</option>
+              <option value="checked_in">已入校 (In Campus)</option>
+              <option value="checked_out">已離校 (Departed)</option>
+            </select>
+          </div>
+
+          <!-- Search keyword -->
+          <div class="lg:col-span-3">
+            <div class="relative">
+              <input type="text" id="displaySearchInput" onkeyup="renderDisplayTable()" placeholder="搜尋訪客/車牌/老師/單位..." 
+                     class="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-white">
+              <i class="fa-solid fa-magnifying-glass absolute left-2.5 top-2.5 text-slate-400 text-xs"></i>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- KPI Status Badges -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500">當前查詢總筆數</p>
+            <p class="text-2xl font-extrabold text-slate-800 mt-0.5" id="kpiTotalRecords">0</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-amber-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-amber-600">待入校 (尚未報到)</p>
+            <p class="text-2xl font-extrabold text-amber-600 mt-0.5" id="kpiPendingCount">0</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-clock"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-emerald-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-emerald-600">目前在校內 (已換證)</p>
+            <p class="text-2xl font-extrabold text-emerald-600 mt-0.5" id="kpiCheckedInCount">0</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-building-circle-check"></i>
+          </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-slate-500">已離校</p>
+            <p class="text-2xl font-extrabold text-slate-600 mt-0.5" id="kpiCheckedOutCount">0</p>
+          </div>
+          <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-door-open"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Visitor Log Data Table -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead class="bg-slate-800 text-slate-200 uppercase text-[11px] font-semibold tracking-wider">
+              <tr>
+                <th class="px-4 py-3">狀態</th>
+                <th class="px-4 py-3">填寫預計時間</th>
+                <th class="px-4 py-3">來訪單位 & 訪客</th>
+                <th class="px-4 py-3">人數 & 車牌</th>
+                <th class="px-4 py-3">接待老師 / 處室</th>
+                <th class="px-4 py-3">事由備註</th>
+                <th class="px-4 py-3">警衛確認入校時間</th>
+                <th class="px-4 py-3">對方離校時間</th>
+                <th class="px-4 py-3 text-right">警衛操作</th>
+              </tr>
+            </thead>
+            <tbody id="displayTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+        <div id="displayTableEmpty" class="hidden p-8 text-center text-slate-400">
+          <i class="fa-solid fa-folder-open text-4xl mb-2 text-slate-300"></i>
+          <p>無符合當前條件的訪客通報紀錄。</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: 資料統計 (DATA STATISTICS & CHARTS)  -->
+    <!-- ========================================== -->
+    <section id="tabContent-stats" class="space-y-6 hidden">
+      
+      <!-- Analytics Control Panel -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+        
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+              <i class="fa-solid fa-chart-column text-emerald-600"></i> 校園訪客數據統計分析 Dashboard
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              可依年份、月份或特定範圍進行統計，提供多元圖表展現趨勢與處室邀約比例。
+            </p>
+          </div>
+
+          <!-- Page 3 Import/Export Actions -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="triggerFileInput('import-stats')" class="text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-import"></i> 匯入原始資料
+            </button>
+            <button onclick="exportData('stats')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+              <i class="fa-solid fa-file-export"></i> 匯出統計報表 (CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-3 border-t border-slate-100">
+          
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">統計年份篩選</label>
+            <select id="statsYearSelect" onchange="updateAnalyticsCharts()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+              <option value="all">所有年份 (All Years)</option>
+              <option value="2026" selected>2026 年</option>
+              <option value="2025">2025 年</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">統計月份篩選</label>
+            <select id="statsMonthSelect" onchange="updateAnalyticsCharts()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+              <option value="all" selected>整年度 (1~12 月)</option>
+              <option value="1">1 月</option>
+              <option value="2">2 月</option>
+              <option value="3">3 月</option>
+              <option value="4">4 月</option>
+              <option value="5">5 月</option>
+              <option value="6">6 月</option>
+              <option value="7">7 月</option>
+              <option value="8">8 月</option>
+              <option value="9">9 月</option>
+              <option value="10">10 月</option>
+              <option value="11">11 月</option>
+              <option value="12">12 月</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">主要圖表類型</label>
+            <select id="statsChartType" onchange="updateAnalyticsCharts()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+              <option value="bar">長條圖 (Bar Chart)</option>
+              <option value="line">折線圖 (Line Chart)</option>
+              <option value="doughnut">甜甜圈/圓餅圖 (Doughnut)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">分析維度</label>
+            <select id="statsDimension" onchange="updateAnalyticsCharts()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white focus:ring-2 focus:ring-emerald-500">
+              <option value="dept">各處室邀約比例</option>
+              <option value="timeline">訪客時間趨勢</option>
+              <option value="peakHour">尖峰時段分析 (08:00 - 17:00)</option>
+              <option value="vehicle">入校車輛統計</option>
+            </select>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- KPI Cards Summary for Statistics -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white p-5 rounded-2xl shadow-sm">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-emerald-100 font-medium">總來訪組數</p>
+              <h3 class="text-3xl font-black mt-1" id="statCardGroups">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg text-white">
+              <i class="fa-solid fa-users"></i>
+            </div>
+          </div>
+          <p class="text-[11px] text-emerald-100/90 mt-2">已選範圍內的訪客報到次數</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-blue-600 to-indigo-700 text-white p-5 rounded-2xl shadow-sm">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-blue-100 font-medium">總來訪人次</p>
+              <h3 class="text-3xl font-black mt-1" id="statCardPeople">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg text-white">
+              <i class="fa-solid fa-user-group"></i>
+            </div>
+          </div>
+          <p class="text-[11px] text-blue-100/90 mt-2">包含同行訪客之累積總人數</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-amber-500 to-orange-600 text-white p-5 rounded-2xl shadow-sm">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-amber-100 font-medium">入校車輛數</p>
+              <h3 class="text-3xl font-black mt-1" id="statCardVehicles">0</h3>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg text-white">
+              <i class="fa-solid fa-car"></i>
+            </div>
+          </div>
+          <p class="text-[11px] text-amber-100/90 mt-2">有登記車牌之汽車與機車數</p>
+        </div>
+
+        <div class="bg-gradient-to-br from-purple-600 to-violet-700 text-white p-5 rounded-2xl shadow-sm">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="text-xs text-purple-100 font-medium">最熱門邀約處室</p>
+              <h3 class="text-xl font-bold mt-2 truncate" id="statCardTopDept">教務處</h3>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg text-white shrink-0">
+              <i class="fa-solid fa-trophy"></i>
+            </div>
+          </div>
+          <p class="text-[11px] text-purple-100/90 mt-2" id="statCardTopDeptSub">佔總邀約比例最高</p>
+        </div>
+
+      </div>
+
+      <!-- Visual Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Primary Chart Box (2 columns) -->
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center justify-between">
+            <span id="primaryChartTitle"><i class="fa-solid fa-chart-simple text-emerald-600 mr-2"></i> 各處室邀約人次統計</span>
+            <span class="text-xs text-slate-400 font-normal">即時計算數據</span>
+          </h3>
+          <div class="h-72 relative">
+            <canvas id="primaryAnalyticsChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Secondary Breakdown Chart Box (1 column) -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-pie-chart text-emerald-600"></i> 來訪狀態比例
+            </h3>
+            <div class="h-56 relative flex items-center justify-center">
+              <canvas id="secondaryAnalyticsChart"></canvas>
+            </div>
+          </div>
+          <div class="pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">
+            <div class="flex justify-between"><span>完成履約離校率：</span><span class="font-bold text-slate-700" id="statCompletionRate">0%</span></div>
+            <div class="flex justify-between"><span>無車牌徒步比率：</span><span class="font-bold text-slate-700" id="statWalkRate">0%</span></div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ========================================== -->
+    <!-- TAB 4: 資料管理 (TEACHER & PERMISSION MANAGEMENT) -->
+    <!-- ========================================== -->
+    <section id="tabContent-manage" class="space-y-6 hidden">
+      
+      <!-- Top Action Bar for Teacher Management -->
+      <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+            <i class="fa-solid fa-user-gear text-emerald-600"></i> 全校教師與系統存取權限管理
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            可設定各老師之 Gmail 信箱與對應權限（「僅限資料填寫」或「全部功能權限」）。
+          </p>
+        </div>
+
+        <!-- Page 4 Import/Export Actions -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button onclick="downloadTeacherCsvTemplate()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+            <i class="fa-solid fa-download text-emerald-600"></i> 下載匯入範本 CSV
+          </button>
+          <button onclick="openBulkImportTeachersModal()" class="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5 shadow-sm">
+            <i class="fa-solid fa-file-csv"></i> 批次匯入全校教師
+          </button>
+          <button onclick="exportData('manage')" class="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2 rounded-lg font-medium transition flex items-center gap-1.5">
+            <i class="fa-solid fa-file-export"></i> 匯出權限名冊
+          </button>
+        </div>
+      </div>
+
+      <!-- Teacher Roster Table Container -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden space-y-4 p-5">
+        
+        <!-- Table Search & Filters -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold text-slate-600">處室篩選：</span>
+            <select id="manageDeptFilter" onchange="renderTeacherTable()" class="px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 bg-slate-50">
+              <option value="all">所有處室 (All)</option>
+              <option value="教務處">教務處</option>
+              <option value="學務處">學務處</option>
+              <option value="總務處">總務處</option>
+              <option value="輔導室">輔導室</option>
+              <option value="資訊組">資訊組</option>
+              <option value="校長室">校長室</option>
+              <option value="人事室">人事室</option>
+            </select>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <input type="text" id="manageSearchInput" onkeyup="renderTeacherTable()" placeholder="搜尋姓名或 Gmail 信箱..." 
+                   class="px-3 py-1.5 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500 w-60">
+            <button onclick="openAddTeacherModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-xl font-medium transition flex items-center gap-1">
+              <i class="fa-solid fa-user-plus"></i> 新增教師
+            </button>
+          </div>
+        </div>
+
+        <!-- Roster Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm">
+            <thead class="bg-slate-100 text-slate-600 uppercase text-[11px] font-semibold tracking-wider">
+              <tr>
+                <th class="px-4 py-3">教師姓名</th>
+                <th class="px-4 py-3">所屬處室</th>
+                <th class="px-4 py-3">綁定 Gmail 信箱</th>
+                <th class="px-4 py-3">系統存取權限</th>
+                <th class="px-4 py-3">自動對應狀態</th>
+                <th class="px-4 py-3 text-right">操作管理</th>
+              </tr>
+            </thead>
+            <tbody id="teacherTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-12">
+    <div class="max-w-7xl mx-auto px-4 text-center space-y-2">
+      <p class="font-medium text-slate-300">校園訪客與警衛室通知系統 &copy; 2026 Campus Guardhouse & Visitor Management Portal</p>
+      <p class="text-slate-500">提供掃描 QR Code 報到、Gmail 身分自動帶入、警衛即時動態監控、統計圖表與全校權限匯入匯出功能。</p>
+    </div>
+  </footer>
+
+
+  <!-- ========================================== -->
+  <!-- MODALS & OVERLAYS                          -->
+  <!-- ========================================== -->
+
+  <!-- 1. QR CODE MODAL -->
+  <div id="qrModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center relative border border-slate-100 animate-fadeIn">
+      <button onclick="closeQRModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center text-xl mx-auto mb-3">
+        <i class="fa-solid fa-qrcode"></i>
+      </div>
+
+      <h3 class="text-lg font-bold text-slate-800">校園訪客報到 QR Code</h3>
+      <p class="text-xs text-slate-500 mt-1 mb-4">老師或訪客可用手機掃描此條碼，快速進入資料填寫表單。</p>
+
+      <!-- QR Code Canvas Container -->
+      <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 inline-block mb-4">
+        <div id="qrcodeCanvas" class="flex justify-center"></div>
+      </div>
+
+      <div class="space-y-2">
+        <button onclick="simulateQRScan(); closeQRModal();" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-xl font-medium transition">
+          <i class="fa-solid fa-camera mr-1"></i> 直接模擬手機掃描 (即時開啟表單)
+        </button>
+        <button onclick="copyQRCodeLink()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs py-2 rounded-xl font-medium transition">
+          <i class="fa-solid fa-copy mr-1"></i> 複製連結網址
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 2. GMAIL / CUSTOM LOGIN MODAL -->
+  <div id="loginModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative border border-slate-100">
+      <button onclick="closeCustomLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+          <i class="fa-brands fa-google"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-800">Google / Gmail 身分登入</h3>
+          <p class="text-xs text-slate-500">輸入老師之 Gmail 信箱，自動帶入處室與姓名</p>
+        </div>
+      </div>
+
+      <form onsubmit="handleCustomLoginSubmit(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">學校 Gmail 信箱</label>
+          <input type="email" id="loginEmailInput" required placeholder="例如: kuohua.chen@school.edu.tw" 
+                 class="w-full px-3.5 py-2 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500">
+          <p class="text-[11px] text-slate-400 mt-1">若信箱已在教師名冊中，系統將自動比對處室與權限。</p>
+        </div>
+
+        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-1">
+          <p class="font-semibold text-slate-700 mb-1">快速測試信箱列表：</p>
+          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='kuohua.chen@school.edu.tw'">• kuohua.chen@school.edu.tw (陳國華 / 教務處 / 全部權限)</p>
+          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='yating.lin@school.edu.tw'">• yating.lin@school.edu.tw (林雅婷 / 學務處 / 僅限填寫)</p>
+          <p class="cursor-pointer hover:text-emerald-600" onclick="document.getElementById('loginEmailInput').value='mingte.chang@school.edu.tw'">• mingte.chang@school.edu.tw (張明德 / 總務處 / 全部權限)</p>
+        </div>
+
+        <div class="pt-2 flex space-x-2">
+          <button type="button" onclick="closeCustomLoginModal()" class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium">取消</button>
+          <button type="submit" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium">確認登入</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- 3. BULK IMPORT TEACHERS MODAL (PAGE 4) -->
+  <div id="bulkImportModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 relative border border-slate-100">
+      <button onclick="closeBulkImportTeachersModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-4">
+        <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-xl">
+          <i class="fa-solid fa-file-csv"></i>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold text-slate-800">匯入全校教師名冊與權限</h3>
+          <p class="text-xs text-slate-500">可直接貼上 CSV 內容或選擇檔案進行整批匯入</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">貼上 CSV 文字內容（格式: 姓名,處室,Gmail,權限[full/fill]）</label>
+          <textarea id="bulkCsvTextarea" rows="6" placeholder="例如:
+王小明,教務處,xiaoming.wang@school.edu.tw,fill
+李大華,資訊組,dahua.lee@school.edu.tw,full" 
+                    class="w-full font-mono text-xs px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-emerald-500"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-500">
+          <span>或選擇本機 CSV 檔案：</span>
+          <input type="file" id="bulkCsvFileInput" accept=".csv" class="text-xs">
+        </div>
+
+        <div class="pt-2 flex space-x-2">
+          <button onclick="closeBulkImportTeachersModal()" class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium">取消</button>
+          <button onclick="processBulkTeacherImport()" class="flex-1 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium">執行批次匯入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 4. ADD / EDIT TEACHER MODAL -->
+  <div id="addTeacherModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative border border-slate-100">
+      <button onclick="closeAddTeacherModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-lg">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <h3 class="text-lg font-bold text-slate-800 mb-4" id="teacherModalTitle">新增教職員資料</h3>
+
+      <form onsubmit="handleSaveTeacherSubmit(event)" class="space-y-4">
+        <input type="hidden" id="editTeacherId">
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">教師姓名 <span class="text-red-500">*</span></label>
+          <input type="text" id="modalTeacherName" required placeholder="例如: 黃建豪 老師" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">所屬處室 <span class="text-red-500">*</span></label>
+          <select id="modalTeacherDept" required class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+            <option value="教務處">教務處</option>
+            <option value="學務處">學務處</option>
+            <option value="總務處">總務處</option>
+            <option value="輔導室">輔導室</option>
+            <option value="資訊組">資訊組</option>
+            <option value="校長室">校長室</option>
+            <option value="人事室">人事室</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Gmail 信箱 <span class="text-red-500">*</span></label>
+          <input type="email" id="modalTeacherEmail" required placeholder="example@school.edu.tw" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">系統權限等級</label>
+          <select id="modalTeacherRole" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-300">
+            <option value="fill">僅限資料填寫 (Form Only)</option>
+            <option value="full">全部功能權限 (Full Access: 填寫/顯示/統計/管理)</option>
+          </select>
+        </div>
+
+        <div class="pt-2 flex space-x-2">
+          <button type="button" onclick="closeAddTeacherModal()" class="flex-1 py-2 rounded-xl border border-slate-300 text-slate-600 text-xs font-medium">取消</button>
+          <button type="submit" class="flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium">儲存資料</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- HIDDEN FILE INPUT FOR IMPORT -->
+  <input type="file" id="genericFileInput" accept=".csv,.json" class="hidden" onchange="handleFileSelected(event)">
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+
+  <!-- ========================================== -->
+  <!-- JAVASCRIPT APPLICATION LOGIC               -->
+  <!-- ========================================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // Global application state setup
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'campus-visitor-system';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+    let db = null;
+    let auth = null;
+    let isFirebaseReady = false;
+
+    // Local state stores
+    window.AppState = {
+      currentUser: {
+        id: 't3',
+        name: '張明德主任',
+        dept: '總務處',
+        email: 'mingte.chang@school.edu.tw',
+        role: 'full', // 'full' or 'fill'
+        isGuest: false
+      },
+      currentTab: 'fill',
+      displayTimeMode: 'daily', // 'daily', 'monthly', 'yearly', 'all'
+      teachers: [
+        { id: 't1', name: '陳國華 老師', dept: '教務處', email: 'kuohua.chen@school.edu.tw', role: 'full' },
+        { id: 't2', name: '林雅婷 老師', dept: '學務處', email: 'yating.lin@school.edu.tw', role: 'fill' },
+        { id: 't3', name: '張明德 主任', dept: '總務處', email: 'mingte.chang@school.edu.tw', role: 'full' },
+        { id: 't4', name: '王美玲 老師', dept: '輔導室', email: 'meiling.wang@school.edu.tw', role: 'fill' },
+        { id: 't5', name: '李建宏 組長', dept: '資訊組', email: 'chienhong.lee@school.edu.tw', role: 'full' },
+        { id: 't6', name: '黃志強 主任', dept: '校長室', email: 'chihchiang.huang@school.edu.tw', role: 'full' },
+        { id: 't7', name: '鄭麗芬 主任', dept: '人事室', email: 'lifen.cheng@school.edu.tw', role: 'fill' },
+      ],
+      visitors: [],
+      audioAlertEnabled: true,
+      activeImportTargetPage: null
+    };
+
+    // Pre-populate mock visitors spanning multiple dates/months
+    function generateMockVisitors() {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nowTime = new Date().toISOString().slice(11, 16);
+      
+      const sampleUnits = [
+        { unit: '國家教育研究院', name: '張副研究員', count: 2, dept: '教務處', teacher: '陳國華 老師', plate: 'ABC-1234', purpose: '課綱實驗課程輔導評鑑會議' },
+        { unit: '聯華電子文教基金會', name: '李專務理', count: 3, dept: '資訊組', teacher: '李建宏 組長', plate: 'EV-8888', purpose: '捐贈偏鄉數位教室設備簽約' },
+        { unit: '彰化縣政府教育處', name: '林督學', count: 1, dept: '校長室', teacher: '黃志強 主任', plate: 'KAA-5678', purpose: '校務發展成果視導巡查' },
+        { unit: '學生家長委員會', name: '許常務委員', count: 4, dept: '學務處', teacher: '林雅婷 老師', plate: '無 (步行)', purpose: '討論校慶運動會籌備進度' },
+        { unit: '東方機電工程行', name: '陳技師', count: 2, dept: '總務處', teacher: '張明德 主任', plate: 'BKN-9921', purpose: '高壓變電箱例行保養會勘' },
+        { unit: '巨匠電腦資訊', name: '趙講師', count: 1, dept: '資訊組', teacher: '李建宏 組長', plate: 'RM-3312', purpose: '教師 AI 研習課程主講' }
+      ];
+
+      const records = [];
+      
+      // Generate records for Today
+      sampleUnits.forEach((item, idx) => {
+        const hourStr = (8 + idx * 1.5).toFixed(0).padStart(2, '0');
+        const status = idx === 0 ? 'checked_in' : (idx === 1 ? 'checked_out' : 'pending');
+        
+        records.push({
+          id: 'v_' + Date.now() + '_' + idx,
+          teacherName: item.teacher,
+          teacherDept: item.dept,
+          teacherEmail: 'teacher' + idx + '@school.edu.tw',
+          expectedTime: `${todayStr}T${hourStr}:30`,
+          unit: item.unit,
+          visitorName: item.name,
+          phone: `09${Math.floor(10000000 + Math.random() * 90000000)}`,
+          plateNumber: item.plate,
+          visitorCount: item.count,
+          purpose: item.purpose,
+          status: status,
+          checkInTime: status !== 'pending' ? `${todayStr} ${hourStr}:25` : null,
+          checkOutTime: status === 'checked_out' ? `${todayStr} ${parseInt(hourStr)+1}:40` : null,
+          createdAt: new Date().toISOString()
+        });
+      });
+
+      // Generate records for past days in 2026 / 2025
+      const pastDates = ['2026-03-10', '2026-03-15', '2026-02-18', '2026-01-20', '2025-11-12'];
+      pastDates.forEach((pDate, pIdx) => {
+        records.push({
+          id: 'v_past_' + pIdx,
+          teacherName: '陳國華 老師',
+          teacherDept: '教務處',
+          teacherEmail: 'kuohua.chen@school.edu.tw',
+          expectedTime: `${pDate}T10:00`,
+          unit: '跨校領域研習團 ' + (pIdx + 1),
+          visitorName: '劉參訪代表',
+          phone: '0911-222-333',
+          plateNumber: 'QQ-7788',
+          visitorCount: 5 + pIdx,
+          purpose: '跨校觀課與備課交流活動',
+          status: 'checked_out',
+          checkInTime: `${pDate} 09:50`,
+          checkOutTime: `${pDate} 12:10`,
+          createdAt: new Date(pDate).toISOString()
+        });
+      });
+
+      return records;
+    }
+
+    // Initialize LocalStorage sync & Firebase
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Load saved visitors or set mock data
+      const savedVisitors = localStorage.getItem('campus_visitors');
+      if (savedVisitors) {
+        try { AppState.visitors = JSON.parse(savedVisitors); } catch(e) { AppState.visitors = generateMockVisitors(); }
+      } else {
+        AppState.visitors = generateMockVisitors();
+        saveVisitorsToStorage();
+      }
+
+      const savedTeachers = localStorage.getItem('campus_teachers');
+      if (savedTeachers) {
+        try { AppState.teachers = JSON.parse(savedTeachers); } catch(e) {}
+      }
+
+      // Initialize Firebase if config exists
+      if (firebaseConfig) {
+        try {
+          const app = initializeApp(firebaseConfig);
+          db = getFirestore(app);
+          auth = getAuth(app);
+          
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            await signInAnonymously(auth);
+          }
+          isFirebaseReady = true;
+          setupFirestoreListeners();
+        } catch (err) {
+          console.warn("Firebase fallback to LocalStorage active:", err);
+        }
+      }
+
+      // Set default date picker values
+      const today = new Date().toISOString().split('T')[0];
+      const curMonth = today.slice(0, 7);
+      const curYear = new Date().getFullYear();
+      
+      document.getElementById('displayDatePicker').value = today;
+      document.getElementById('displayMonthPicker').value = curMonth;
+      document.getElementById('displayYearPicker').value = curYear;
+      document.getElementById('formExpectedTime').value = `${today}T09:00`;
+
+      // Initial Render
+      updateUserIdentityUI();
+      renderDisplayTable();
+      renderTeacherTable();
+      initAnalyticsCharts();
+      
+      // Auto QR Code Render
+      generateQRCodeCanvas();
+    });
+
+    function saveVisitorsToStorage() {
+      localStorage.setItem('campus_visitors', JSON.stringify(AppState.visitors));
+    }
+    function saveTeachersToStorage() {
+      localStorage.setItem('campus_teachers', JSON.stringify(AppState.teachers));
+    }
+
+    // Firebase Firestore Listener (Mandatory Rule 1: /artifacts/{appId}/public/data/visitors)
+    function setupFirestoreListeners() {
+      if (!db || !isFirebaseReady) return;
+      
+      const vColl = collection(db, 'artifacts', appId, 'public', 'data', 'visitors');
+      onSnapshot(vColl, (snapshot) => {
+        if (!snapshot.empty) {
+          const loaded = [];
+          snapshot.forEach(docSnap => loaded.push({ id: docSnap.id, ...docSnap.data() }));
+          AppState.visitors = loaded;
+          saveVisitorsToStorage();
+          renderDisplayTable();
+          if (AppState.currentTab === 'stats') updateAnalyticsCharts();
+        }
+      }, (err) => console.log("Firestore visitor sync error:", err));
+
+      const tColl = collection(db, 'artifacts', appId, 'public', 'data', 'teachers');
+      onSnapshot(tColl, (snapshot) => {
+        if (!snapshot.empty) {
+          const loaded = [];
+          snapshot.forEach(docSnap => loaded.push({ id: docSnap.id, ...docSnap.data() }));
+          AppState.teachers = loaded;
+          saveTeachersToStorage();
+          renderTeacherTable();
+        }
+      }, (err) => console.log("Firestore teacher sync error:", err));
+    }
+
+    // Export Firestore helper methods
+    window.syncVisitorToCloud = async function(visitorDoc) {
+      if (!isFirebaseReady || !db) return;
+      try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'visitors', visitorDoc.id), visitorDoc);
+      } catch (e) { console.error("Cloud sync err", e); }
+    };
+    
+    window.syncTeacherToCloud = async function(teacherDoc) {
+      if (!isFirebaseReady || !db) return;
+      try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teachers', teacherDoc.id), teacherDoc);
+      } catch (e) { console.error("Cloud sync teacher err", e); }
+    };
+
+    window.deleteTeacherFromCloud = async function(teacherId) {
+      if (!isFirebaseReady || !db) return;
+      try {
+        await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'teachers', teacherId));
+      } catch (e) { console.error("Cloud delete teacher err", e); }
+    };
+  </script>
+
+  <script>
+    /* ===================================================
+       UI & BUSINESS LOGIC (GLOBAL SCOPE)
+       =================================================== */
+
+    // 1. NAVIGATION & PERMISSIONS MANAGEMENT
+    function switchTab(tabId) {
+      const userRole = window.AppState.currentUser.role;
+      
+      // Permission Guard: 'fill' role can only see 'fill' tab
+      if (userRole === 'fill' && tabId !== 'fill') {
+        showToast('權限受限', '您的帳號權限僅限於資料填寫通報表單。', 'warning');
+        return;
+      }
+
+      window.AppState.currentTab = tabId;
+      
+      const tabs = ['fill', 'display', 'stats', 'manage'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`tabBtn-${t}`);
+        const content = document.getElementById(`tabContent-${t}`);
+        if (t === tabId) {
+          btn.classList.add('tab-active');
+          content.classList.remove('hidden');
+        } else {
+          btn.classList.remove('tab-active');
+          content.classList.add('hidden');
+        }
+      });
+
+      if (tabId === 'display') {
+        renderDisplayTable();
+      } else if (tabId === 'stats') {
+        setTimeout(updateAnalyticsCharts, 100);
+      } else if (tabId === 'manage') {
+        renderTeacherTable();
+      }
+    }
+
+    function updateUserIdentityUI() {
+      const user = window.AppState.currentUser;
+      const avatarEl = document.getElementById('currentUserAvatar');
+      const nameEl = document.getElementById('currentUserName');
+      const badgeEl = document.getElementById('currentUserRoleBadge');
+
+      if (user.isGuest) {
+        avatarEl.textContent = '訪';
+        avatarEl.className = 'w-6 h-6 rounded-full bg-slate-500 text-white flex items-center justify-center font-bold text-xs';
+        nameEl.textContent = '未登入 / 訪客 QR 掃描';
+        badgeEl.textContent = '手動填寫身分';
+        badgeEl.className = 'text-[10px] text-amber-400 font-semibold';
+      } else {
+        avatarEl.textContent = user.name.slice(0, 1);
+        avatarEl.className = 'w-6 h-6 rounded-full bg-emerald-500 text-slate-900 flex items-center justify-center font-bold text-xs';
+        nameEl.textContent = `${user.name} (${user.dept})`;
+        if (user.role === 'full') {
+          badgeEl.textContent = '全部功能權限';
+          badgeEl.className = 'text-[10px] text-emerald-400 font-semibold';
+        } else {
+          badgeEl.textContent = '僅限資料填寫';
+          badgeEl.className = 'text-[10px] text-amber-300 font-semibold';
+        }
+      }
+
+      // Update Fill Tab Form Banner & Inputs
+      const banner = document.getElementById('identityBanner');
+      const formTeacherName = document.getElementById('formTeacherName');
+      const formTeacherDept = document.getElementById('formTeacherDept');
+
+      if (user.isGuest) {
+        banner.className = 'p-4 rounded-xl border bg-amber-50 border-amber-200 text-amber-900 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-2';
+        banner.innerHTML = `
+          <div class="flex items-center space-x-3 text-xs sm:text-sm">
+            <div class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center font-bold text-sm shrink-0">
+              <i class="fa-solid fa-user-slash"></i>
+            </div>
+            <div>
+              <span class="font-bold">未登入 Gmail (訪客掃碼模式)</span>
+              <div class="text-xs text-amber-800 mt-0.5">請手動填寫通報老師姓名與處室。亦可點擊右側選單登入 Gmail 自動對應。</div>
+            </div>
+          </div>
+          <button onclick="openCustomLoginModal()" class="text-xs text-amber-900 underline shrink-0 font-medium">登入 Gmail &rarr;</button>
+        `;
+        formTeacherName.value = '';
+        formTeacherName.disabled = false;
+        formTeacherName.classList.remove('bg-slate-100');
+        formTeacherDept.value = '';
+        formTeacherDept.disabled = false;
+        formTeacherDept.classList.remove('bg-slate-100');
+      } else {
+        banner.className = 'p-4 rounded-xl border bg-emerald-50 border-emerald-200 text-emerald-900 flex items-start sm:items-center justify-between flex-col sm:flex-row gap-2';
+        banner.innerHTML = `
+          <div class="flex items-center space-x-3 text-xs sm:text-sm">
+            <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <span class="font-bold">${user.name}</span> 
+              <span class="text-emerald-700 font-normal">（所屬處室：<span class="font-semibold">${user.dept}</span>）</span>
+              <span class="ml-2 text-[11px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded-full font-medium">Gmail 身分已對應</span>
+              <div class="text-xs text-emerald-700/90 mt-0.5">系統已自動帶入通報老師姓名與處室，您只需填寫下方訪客資訊。</div>
+            </div>
+          </div>
+          <button onclick="openCustomLoginModal()" class="text-xs text-emerald-800 underline shrink-0 font-medium">切換身分 &rarr;</button>
+        `;
+        formTeacherName.value = user.name;
+        formTeacherName.disabled = true;
+        formTeacherName.classList.add('bg-slate-100');
+        formTeacherDept.value = user.dept;
+        formTeacherDept.disabled = true;
+        formTeacherDept.classList.add('bg-slate-100');
+      }
+
+      // Update Navigation Tabs Visibility based on Role
+      const displayBtn = document.getElementById('tabBtn-display');
+      const statsBtn = document.getElementById('tabBtn-stats');
+      const manageBtn = document.getElementById('tabBtn-manage');
+      const audioBanner = document.getElementById('guardhouseAudioBanner');
+
+      if (user.role === 'fill') {
+        displayBtn.classList.add('hidden');
+        statsBtn.classList.add('hidden');
+        manageBtn.classList.add('hidden');
+        audioBanner.classList.add('hidden');
+        switchTab('fill');
+      } else {
+        displayBtn.classList.remove('hidden');
+        statsBtn.classList.remove('hidden');
+        manageBtn.classList.remove('hidden');
+        audioBanner.classList.remove('hidden');
+      }
+    }
+
+    function toggleUserDropdown() {
+      const menu = document.getElementById('userDropdown');
+      menu.classList.toggle('hidden');
+    }
+
+    function switchAccount(teacherId) {
+      document.getElementById('userDropdown').classList.add('hidden');
+      if (teacherId === 'guest') {
+        window.AppState.currentUser = { id: 'guest', name: '訪客/未登入', dept: '', email: '', role: 'fill', isGuest: true };
+      } else {
+        const found = window.AppState.teachers.find(t => t.id === teacherId);
+        if (found) {
+          window.AppState.currentUser = { ...found, isGuest: false };
+        }
+      }
+      updateUserIdentityUI();
+      showToast('身分已切換', `已切換為：${window.AppState.currentUser.name}`, 'info');
+    }
+
+    // 2. TAB 1: FORM SUBMISSION & QUICK FILL
+    function quickFillSampleForm() {
+      const now = new Date();
+      now.setHours(now.getHours() + 1);
+      const timeStr = now.toISOString().slice(0, 16);
+
+      document.getElementById('formExpectedTime').value = timeStr;
+      document.getElementById('formUnit').value = '國家圖書館數位資訊組';
+      document.getElementById('formVisitorName').value = '黃志明 博士';
+      document.getElementById('formPhone').value = '0933-556-789';
+      document.getElementById('formPlateNumber').value = 'BAT-8899';
+      document.getElementById('formVisitorCount').value = '2';
+      document.getElementById('formPurpose').value = '蒞校指導電子書資料庫連線設定與體驗諮詢';
+      
+      showToast('完成範例填入', '已為您自動填入測試用訪客資料。', 'success');
+    }
+
+    function resetForm() {
+      document.getElementById('visitorForm').reset();
+      updateUserIdentityUI();
+    }
+
+    function handleFormSubmit(e) {
+      e.preventDefault();
+      
+      const teacherName = document.getElementById('formTeacherName').value.trim();
+      const teacherDept = document.getElementById('formTeacherDept').value;
+      const expectedTime = document.getElementById('formExpectedTime').value;
+      const unit = document.getElementById('formUnit').value.trim();
+      const visitorName = document.getElementById('formVisitorName').value.trim();
+      const phone = document.getElementById('formPhone').value.trim();
+      const plateNumber = document.getElementById('formPlateNumber').value.trim() || '無車輛';
+      const visitorCount = parseInt(document.getElementById('formVisitorCount').value) || 1;
+      const purpose = document.getElementById('formPurpose').value.trim() || '無特別說明';
+
+      const newRecord = {
+        id: 'v_' + Date.now(),
+        teacherName: teacherName,
+        teacherDept: teacherDept,
+        teacherEmail: window.AppState.currentUser.email || '',
+        expectedTime: expectedTime,
+        unit: unit,
+        visitorName: visitorName,
+        phone: phone,
+        plateNumber: plateNumber,
+        visitorCount: visitorCount,
+        purpose: purpose,
+        status: 'pending',
+        checkInTime: null,
+        checkOutTime: null,
+        createdAt: new Date().toISOString()
+      };
+
+      window.AppState.visitors.unshift(newRecord);
+      localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+      if (window.syncVisitorToCloud) window.syncVisitorToCloud(newRecord);
+
+      showToast('通報成功！', `訪客「${visitorName} (${unit})」資訊已即時傳送至警衛室。`, 'success');
+      playAudioNotice();
+
+      // Reset visitor fields
+      document.getElementById('formUnit').value = '';
+      document.getElementById('formVisitorName').value = '';
+      document.getElementById('formPhone').value = '';
+      document.getElementById('formPlateNumber').value = '';
+      document.getElementById('formVisitorCount').value = '1';
+      document.getElementById('formPurpose').value = '';
+
+      // If user has full access, offer to jump to Display Tab
+      if (window.AppState.currentUser.role === 'full') {
+        setTimeout(() => {
+          if (confirm('通報已送出！是否立即前往「資料顯示 (警衛室監控)」分頁查看該筆紀錄？')) {
+            switchTab('display');
+          }
+        }, 300);
+      }
+    }
+
+
+    // 3. TAB 2: GUARDHOUSE DISPLAY & RECORD MANAGEMENT
+    function setDisplayTimeMode(mode) {
+      window.AppState.displayTimeMode = mode;
+      
+      const btnDaily = document.getElementById('timeModeBtn-daily');
+      const btnMonthly = document.getElementById('timeModeBtn-monthly');
+      const btnYearly = document.getElementById('timeModeBtn-yearly');
+      const btnAll = document.getElementById('timeModeBtn-all');
+
+      const pickerDaily = document.getElementById('displayDatePicker');
+      const pickerMonthly = document.getElementById('displayMonthPicker');
+      const pickerYearly = document.getElementById('displayYearPicker');
+
+      // Reset styles
+      [btnDaily, btnMonthly, btnYearly, btnAll].forEach(b => {
+        b.className = 'flex-1 py-1.5 rounded-lg transition text-center text-slate-500 hover:text-slate-800';
+      });
+
+      pickerDaily.classList.add('hidden');
+      pickerMonthly.classList.add('hidden');
+      pickerYearly.classList.add('hidden');
+
+      if (mode === 'daily') {
+        btnDaily.className = 'flex-1 py-1.5 rounded-lg transition text-center bg-white shadow-sm font-bold text-emerald-700';
+        pickerDaily.classList.remove('hidden');
+      } else if (mode === 'monthly') {
+        btnMonthly.className = 'flex-1 py-1.5 rounded-lg transition text-center bg-white shadow-sm font-bold text-emerald-700';
+        pickerMonthly.classList.remove('hidden');
+      } else if (mode === 'yearly') {
+        btnYearly.className = 'flex-1 py-1.5 rounded-lg transition text-center bg-white shadow-sm font-bold text-emerald-700';
+        pickerYearly.classList.remove('hidden');
+      } else {
+        btnAll.className = 'flex-1 py-1.5 rounded-lg transition text-center bg-white shadow-sm font-bold text-emerald-700';
+      }
+
+      renderDisplayTable();
+    }
+
+    function renderDisplayTable() {
+      const mode = window.AppState.displayTimeMode;
+      const statusFilter = document.getElementById('displayStatusFilter').value;
+      const searchKey = document.getElementById('displaySearchInput').value.toLowerCase().trim();
+
+      const selectedDate = document.getElementById('displayDatePicker').value;
+      const selectedMonth = document.getElementById('displayMonthPicker').value;
+      const selectedYear = document.getElementById('displayYearPicker').value;
+
+      let filtered = window.AppState.visitors.filter(v => {
+        // Time scope filter
+        if (mode === 'daily' && selectedDate) {
+          if (!v.expectedTime.startsWith(selectedDate)) return false;
+        } else if (mode === 'monthly' && selectedMonth) {
+          if (!v.expectedTime.startsWith(selectedMonth)) return false;
+        } else if (mode === 'yearly' && selectedYear) {
+          if (!v.expectedTime.startsWith(selectedYear)) return false;
+        }
+
+        // Status filter
+        if (statusFilter !== 'all' && v.status !== statusFilter) return false;
+
+        // Search Keyword
+        if (searchKey) {
+          const content = `${v.visitorName} ${v.unit} ${v.plateNumber} ${v.teacherName} ${v.teacherDept} ${v.purpose}`.toLowerCase();
+          if (!content.includes(searchKey)) return false;
+        }
+
+        return true;
+      });
+
+      // Update KPI Badges
+      const pendingCount = filtered.filter(v => v.status === 'pending').length;
+      const checkedInCount = filtered.filter(v => v.status === 'checked_in').length;
+      const checkedOutCount = filtered.filter(v => v.status === 'checked_out').length;
+
+      document.getElementById('kpiTotalRecords').textContent = filtered.length;
+      document.getElementById('kpiPendingCount').textContent = pendingCount;
+      document.getElementById('kpiCheckedInCount').textContent = checkedInCount;
+      document.getElementById('kpiCheckedOutCount').textContent = checkedOutCount;
+
+      const pendingBadge = document.getElementById('pendingCountBadge');
+      if (pendingCount > 0) {
+        pendingBadge.textContent = pendingCount;
+        pendingBadge.classList.remove('hidden');
+      } else {
+        pendingBadge.classList.add('hidden');
+      }
+
+      // Render Table Rows
+      const tbody = document.getElementById('displayTableBody');
+      const emptyState = document.getElementById('displayTableEmpty');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      filtered.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+        // Format status badge
+        let statusHtml = '';
+        if (item.status === 'pending') {
+          statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800"><i class="fa-solid fa-clock mr-1"></i> 待報到</span>`;
+        } else if (item.status === 'checked_in') {
+          statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800"><i class="fa-solid fa-building-circle-check mr-1"></i> 已入校</span>`;
+        } else {
+          statusHtml = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600"><i class="fa-solid fa-door-open mr-1"></i> 已離校</span>`;
+        }
+
+        const dateStr = item.expectedTime ? item.expectedTime.replace('T', ' ') : '無資料';
+
+        tr.innerHTML = `
+          <td class="px-4 py-3 whitespace-nowrap">${statusHtml}</td>
+          <td class="px-4 py-3 font-mono font-medium text-xs whitespace-nowrap text-slate-600">${dateStr}</td>
+          <td class="px-4 py-3">
+            <div class="font-bold text-slate-800">${escapeHtml(item.visitorName)}</div>
+            <div class="text-xs text-slate-500">${escapeHtml(item.unit)} (${escapeHtml(item.phone)})</div>
+          </td>
+          <td class="px-4 py-3 whitespace-nowrap">
+            <div class="font-semibold text-slate-700">${item.visitorCount} 人</div>
+            <div class="text-xs text-slate-500 font-mono">${escapeHtml(item.plateNumber)}</div>
+          </td>
+          <td class="px-4 py-3">
+            <div class="font-semibold text-emerald-700">${escapeHtml(item.teacherName)}</div>
+            <div class="text-xs text-slate-500">${escapeHtml(item.teacherDept)}</div>
+          </td>
+          <td class="px-4 py-3 max-w-xs truncate text-xs text-slate-600" title="${escapeHtml(item.purpose)}">
+            ${escapeHtml(item.purpose)}
+          </td>
+          <td class="px-4 py-3 text-xs font-mono whitespace-nowrap">
+            ${item.checkInTime 
+              ? `<span class="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">${item.checkInTime}</span>` 
+              : `<span class="text-slate-400">尚未入校</span>`}
+          </td>
+          <td class="px-4 py-3 text-xs font-mono whitespace-nowrap">
+            ${item.checkOutTime 
+              ? `<span class="text-slate-700 font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">${item.checkOutTime}</span>` 
+              : `<span class="text-slate-400">尚未離校</span>`}
+          </td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            ${getGuardActionButton(item)}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function getGuardActionButton(item) {
+      const checkInDisabled = item.status !== 'pending';
+      const checkOutDisabled = item.status !== 'checked_in';
+
+      return `
+        <div class="inline-flex items-center space-x-1.5">
+          <button onclick="updateVisitorStatus('${item.id}', 'checked_in')" 
+                  ${checkInDisabled ? 'disabled' : ''}
+                  class="${checkInDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'} text-xs px-2.5 py-1.5 rounded-lg font-medium transition">
+            <i class="fa-solid fa-right-to-bracket mr-1"></i> 入校時間
+          </button>
+          <button onclick="updateVisitorStatus('${item.id}', 'checked_out')" 
+                  ${checkOutDisabled ? 'disabled' : ''}
+                  class="${checkOutDisabled ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-sm'} text-xs px-2.5 py-1.5 rounded-lg font-medium transition">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i> 離校時間
+          </button>
+          ${item.status === 'checked_out' ? `
+            <button onclick="updateVisitorStatus('${item.id}', 'pending')" title="重設狀態" class="text-xs text-slate-400 hover:text-slate-600 px-1.5 py-1">
+              <i class="fa-solid fa-rotate-left"></i>
+            </button>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function updateVisitorStatus(id, newStatus) {
+      const nowStr = new Date().toLocaleTimeString('zh-TW', { hour12: false, hour: '2-digit', minute: '2-digit' });
+      const record = window.AppState.visitors.find(v => v.id === id);
+      if (record) {
+        record.status = newStatus;
+        if (newStatus === 'checked_in') {
+          record.checkInTime = `${new Date().toISOString().split('T')[0]} ${nowStr}`;
+          showToast('訪客已換證入校', `訪客「${record.visitorName}」已登記入校。`, 'success');
+        } else if (newStatus === 'checked_out') {
+          record.checkOutTime = `${new Date().toISOString().split('T')[0]} ${nowStr}`;
+          showToast('訪客已登記離校', `訪客「${record.visitorName}」已安全離校。`, 'info');
+        } else {
+          record.checkInTime = null;
+          record.checkOutTime = null;
+        }
+
+        localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+        if (window.syncVisitorToCloud) window.syncVisitorToCloud(record);
+        renderDisplayTable();
+      }
+    }
+
+
+    // 4. TAB 3: DATA STATISTICS & CHART.JS IMPLEMENTATION
+    let primaryChartInstance = null;
+    let secondaryChartInstance = null;
+
+    function initAnalyticsCharts() {
+      const pCtx = document.getElementById('primaryAnalyticsChart')?.getContext('2d');
+      const sCtx = document.getElementById('secondaryAnalyticsChart')?.getContext('2d');
+
+      if (!pCtx || !sCtx) return;
+
+      primaryChartInstance = new Chart(pCtx, {
+        type: 'bar',
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true, position: 'top' } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+
+      secondaryChartInstance = new Chart(sCtx, {
+        type: 'doughnut',
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+
+      updateAnalyticsCharts();
+    }
+
+    function updateAnalyticsCharts() {
+      if (!primaryChartInstance || !secondaryChartInstance) return;
+
+      const yearFilter = document.getElementById('statsYearSelect').value;
+      const monthFilter = document.getElementById('statsMonthSelect').value;
+      const chartType = document.getElementById('statsChartType').value;
+      const dimension = document.getElementById('statsDimension').value;
+
+      // Filter dataset based on selection
+      let dataset = window.AppState.visitors.filter(v => {
+        if (yearFilter !== 'all' && !v.expectedTime.startsWith(yearFilter)) return false;
+        if (monthFilter !== 'all') {
+          const monthStr = monthFilter.padStart(2, '0');
+          const vMonth = v.expectedTime.slice(5, 7);
+          if (vMonth !== monthStr) return false;
+        }
+        return true;
+      });
+
+      // Update Top KPI Summary Cards
+      const totalGroups = dataset.length;
+      const totalPeople = dataset.reduce((sum, item) => sum + (item.visitorCount || 1), 0);
+      const vehicleCount = dataset.filter(item => item.plateNumber && !item.plateNumber.includes('無') && !item.plateNumber.includes('步')).length;
+
+      // Calculate Most Popular Dept
+      const deptCounts = {};
+      dataset.forEach(item => {
+        const d = item.teacherDept || '未指定';
+        deptCounts[d] = (deptCounts[d] || 0) + 1;
+      });
+
+      let topDept = '無紀錄';
+      let maxCount = 0;
+      Object.entries(deptCounts).forEach(([dept, count]) => {
+        if (count > maxCount) {
+          maxCount = count;
+          topDept = dept;
+        }
+      });
+
+      document.getElementById('statCardGroups').textContent = totalGroups;
+      document.getElementById('statCardPeople').textContent = totalPeople;
+      document.getElementById('statCardVehicles').textContent = vehicleCount;
+      document.getElementById('statCardTopDept').textContent = topDept;
+      document.getElementById('statCardTopDeptSub').textContent = maxCount > 0 ? `邀約共 ${maxCount} 次 (${((maxCount/totalGroups)*100 || 0).toFixed(0)}%)` : '無邀約紀錄';
+
+      // Completion & Walking rate
+      const completedCount = dataset.filter(d => d.status === 'checked_out').length;
+      document.getElementById('statCompletionRate').textContent = totalGroups > 0 ? `${((completedCount/totalGroups)*100).toFixed(1)}%` : '0%';
+      document.getElementById('statWalkRate').textContent = totalGroups > 0 ? `${(((totalGroups - vehicleCount)/totalGroups)*100).toFixed(1)}%` : '0%';
+
+      // Configure Primary Chart Data based on selected Dimension
+      let labels = [];
+      let dataValues = [];
+      let labelName = '來訪人次';
+      let titleText = '統計圖表';
+
+      if (dimension === 'dept') {
+        titleText = '各處室邀約訪客人次統計';
+        const depts = ['教務處', '學務處', '總務處', '輔導室', '資訊組', '校長室', '人事室'];
+        labels = depts;
+        dataValues = depts.map(d => {
+          return dataset.filter(item => item.teacherDept === d).reduce((s, item) => s + (item.visitorCount || 1), 0);
+        });
+      } else if (dimension === 'timeline') {
+        titleText = '每月/每日訪客來訪趨勢';
+        const monthMap = {};
+        for(let m=1; m<=12; m++) { monthMap[`${m}月`] = 0; }
+        dataset.forEach(item => {
+          const m = parseInt(item.expectedTime.slice(5, 7)) || 1;
+          monthMap[`${m}月`] += (item.visitorCount || 1);
+        });
+        labels = Object.keys(monthMap);
+        dataValues = Object.values(monthMap);
+      } else if (dimension === 'peakHour') {
+        titleText = '尖峰來訪時段分析 (08:00 - 17:00)';
+        const hours = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+        labels = hours;
+        dataValues = hours.map(h => {
+          const hPrefix = h.slice(0, 2);
+          return dataset.filter(item => item.expectedTime.slice(11, 13) === hPrefix).length;
+        });
+        labelName = '組數 (次數)';
+      } else if (dimension === 'vehicle') {
+        titleText = '車輛入校類別統計';
+        labels = ['汽車/機車入校', '徒步/大眾運輸'];
+        dataValues = [
+          vehicleCount,
+          totalGroups - vehicleCount
+        ];
+      }
+
+      document.getElementById('primaryChartTitle').innerHTML = `<i class="fa-solid fa-chart-simple text-emerald-600 mr-2"></i> ${titleText}`;
+
+      // Update Primary Chart
+      primaryChartInstance.config.type = chartType;
+      primaryChartInstance.data = {
+        labels: labels,
+        datasets: [{
+          label: labelName,
+          data: dataValues,
+          backgroundColor: [
+            'rgba(22, 163, 74, 0.7)',
+            'rgba(37, 99, 235, 0.7)',
+            'rgba(217, 119, 6, 0.7)',
+            'rgba(147, 51, 234, 0.7)',
+            'rgba(236, 72, 153, 0.7)',
+            'rgba(20, 184, 166, 0.7)',
+            'rgba(100, 116, 139, 0.7)'
+          ],
+          borderColor: '#16a34a',
+          borderWidth: 1,
+          tension: 0.3
+        }]
+      };
+      primaryChartInstance.update();
+
+      // Secondary Doughnut Chart (Status Ratio)
+      const pCount = dataset.filter(d => d.status === 'pending').length;
+      const inCount = dataset.filter(d => d.status === 'checked_in').length;
+      const outCount = dataset.filter(d => d.status === 'checked_out').length;
+
+      secondaryChartInstance.data = {
+        labels: ['待入校', '已入校', '已離校'],
+        datasets: [{
+          data: [pCount, inCount, outCount],
+          backgroundColor: ['#f59e0b', '#10b981', '#64748b']
+        }]
+      };
+      secondaryChartInstance.update();
+    }
+
+
+    // 5. TAB 4: TEACHER & PERMISSION MANAGEMENT
+    function renderTeacherTable() {
+      const deptFilter = document.getElementById('manageDeptFilter').value;
+      const searchKey = document.getElementById('manageSearchInput').value.toLowerCase().trim();
+      const tbody = document.getElementById('teacherTableBody');
+      tbody.innerHTML = '';
+
+      let list = window.AppState.teachers.filter(t => {
+        if (deptFilter !== 'all' && t.dept !== deptFilter) return false;
+        if (searchKey) {
+          const content = `${t.name} ${t.dept} ${t.email}`.toLowerCase();
+          if (!content.includes(searchKey)) return false;
+        }
+        return true;
+      });
+
+      list.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition border-b border-slate-100';
+
+        const isFull = t.role === 'full';
+        const roleBadge = isFull 
+          ? `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">全部功能權限</span>`
+          : `<span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">僅限資料填寫</span>`;
+
+        tr.innerHTML = `
+          <td class="px-4 py-3 font-semibold text-slate-800 whitespace-nowrap">${escapeHtml(t.name)}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${escapeHtml(t.dept)}</td>
+          <td class="px-4 py-3 font-mono text-xs text-slate-600 whitespace-nowrap">${escapeHtml(t.email)}</td>
+          <td class="px-4 py-3 whitespace-nowrap">${roleBadge}</td>
+          <td class="px-4 py-3 whitespace-nowrap text-xs text-emerald-600">
+            <i class="fa-solid fa-circle-check mr-1"></i> 已啟用 Gmail 掃碼自動對應
+          </td>
+          <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+            <button onclick="toggleTeacherPermission('${t.id}')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition">
+              <i class="fa-solid fa-arrows-rotate mr-1"></i> 切換權限
+            </button>
+            <button onclick="editTeacher('${t.id}')" class="text-xs text-blue-600 hover:underline">編輯</button>
+            <button onclick="deleteTeacher('${t.id}')" class="text-xs text-red-500 hover:underline">刪除</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function toggleTeacherPermission(id) {
+      const teacher = window.AppState.teachers.find(t => t.id === id);
+      if (teacher) {
+        teacher.role = teacher.role === 'full' ? 'fill' : 'full';
+        localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+        if (window.syncTeacherToCloud) window.syncTeacherToCloud(teacher);
+        
+        // If updating current logged user
+        if (window.AppState.currentUser.id === id) {
+          window.AppState.currentUser.role = teacher.role;
+          updateUserIdentityUI();
+        }
+
+        renderTeacherTable();
+        showToast('權限變更成功', `已將「${teacher.name}」權限更新為：${teacher.role === 'full' ? '全部權限' : '僅限資料填寫'}`, 'success');
+      }
+    }
+
+    function openAddTeacherModal() {
+      document.getElementById('editTeacherId').value = '';
+      document.getElementById('teacherModalTitle').textContent = '新增教職員資料';
+      document.getElementById('modalTeacherName').value = '';
+      document.getElementById('modalTeacherDept').value = '教務處';
+      document.getElementById('modalTeacherEmail').value = '';
+      document.getElementById('modalTeacherRole').value = 'fill';
+      document.getElementById('addTeacherModal').classList.remove('hidden');
+    }
+
+    function editTeacher(id) {
+      const teacher = window.AppState.teachers.find(t => t.id === id);
+      if (teacher) {
+        document.getElementById('editTeacherId').value = teacher.id;
+        document.getElementById('teacherModalTitle').textContent = '編輯教職員資料';
+        document.getElementById('modalTeacherName').value = teacher.name;
+        document.getElementById('modalTeacherDept').value = teacher.dept;
+        document.getElementById('modalTeacherEmail').value = teacher.email;
+        document.getElementById('modalTeacherRole').value = teacher.role;
+        document.getElementById('addTeacherModal').classList.remove('hidden');
+      }
+    }
+
+    function closeAddTeacherModal() {
+      document.getElementById('addTeacherModal').classList.add('hidden');
+    }
+
+    function handleSaveTeacherSubmit(e) {
+      e.preventDefault();
+      const id = document.getElementById('editTeacherId').value;
+      const name = document.getElementById('modalTeacherName').value.trim();
+      const dept = document.getElementById('modalTeacherDept').value;
+      const email = document.getElementById('modalTeacherEmail').value.trim();
+      const role = document.getElementById('modalTeacherRole').value;
+
+      if (id) {
+        const teacher = window.AppState.teachers.find(t => t.id === id);
+        if (teacher) {
+          teacher.name = name;
+          teacher.dept = dept;
+          teacher.email = email;
+          teacher.role = role;
+          if (window.syncTeacherToCloud) window.syncTeacherToCloud(teacher);
+        }
+      } else {
+        const newTeacher = {
+          id: 't_' + Date.now(),
+          name, dept, email, role
+        };
+        window.AppState.teachers.push(newTeacher);
+        if (window.syncTeacherToCloud) window.syncTeacherToCloud(newTeacher);
+      }
+
+      localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+      renderTeacherTable();
+      closeAddTeacherModal();
+      showToast('儲存成功', `教職員「${name}」資料已更新。`, 'success');
+    }
+
+    function deleteTeacher(id) {
+      const teacher = window.AppState.teachers.find(t => t.id === id);
+      if (teacher && confirm(`確定要刪除「${teacher.name}」的系統存取資料與權限嗎？`)) {
+        window.AppState.teachers = window.AppState.teachers.filter(t => t.id !== id);
+        localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+        if (window.deleteTeacherFromCloud) window.deleteTeacherFromCloud(id);
+        renderTeacherTable();
+        showToast('刪除成功', '教職員權限紀錄已刪除。', 'info');
+      }
+    }
+
+    function openBulkImportTeachersModal() {
+      document.getElementById('bulkImportModal').classList.remove('hidden');
+    }
+    function closeBulkImportTeachersModal() {
+      document.getElementById('bulkImportModal').classList.add('hidden');
+    }
+
+    function processBulkTeacherImport() {
+      const text = document.getElementById('bulkCsvTextarea').value.trim();
+      if (!text) {
+        showToast('警告', '請貼上 CSV 文字內容或選擇檔案。', 'warning');
+        return;
+      }
+
+      const lines = text.split('\n');
+      let count = 0;
+      lines.forEach(line => {
+        const parts = line.split(',').map(p => p.trim());
+        if (parts.length >= 3) {
+          const name = parts[0];
+          const dept = parts[1];
+          const email = parts[2];
+          const role = (parts[3] && parts[3].toLowerCase() === 'full') ? 'full' : 'fill';
+
+          if (name && email) {
+            const existing = window.AppState.teachers.find(t => t.email === email);
+            if (existing) {
+              existing.name = name;
+              existing.dept = dept;
+              existing.role = role;
+              if (window.syncTeacherToCloud) window.syncTeacherToCloud(existing);
+            } else {
+              const newT = { id: 't_' + Date.now() + '_' + Math.random().toString(36).substr(2,4), name, dept, email, role };
+              window.AppState.teachers.push(newT);
+              if (window.syncTeacherToCloud) window.syncTeacherToCloud(newT);
+            }
+            count++;
+          }
+        }
+      });
+
+      localStorage.setItem('campus_teachers', JSON.stringify(window.AppState.teachers));
+      renderTeacherTable();
+      closeBulkImportTeachersModal();
+      showToast('批次匯入完成', `已成功匯入與更新 ${count} 筆全校教師權限資料。`, 'success');
+    }
+
+    function downloadTeacherCsvTemplate() {
+      const sampleCsv = `姓名,處室,Gmail信箱,權限(full/fill)
+王大明,教務處,daming.wang@school.edu.tw,fill
+張雅文,資訊組,yawen.chang@school.edu.tw,full
+李志強,總務處,chichiang.lee@school.edu.tw,full`;
+      downloadBlob(sampleCsv, '全校教師名冊匯入範本.csv', 'text/csv;charset=utf-8;');
+    }
+
+
+    // 6. IMPORT / EXPORT CSV & JSON Across All 4 Tabs
+    function triggerFileInput(targetPage) {
+      window.AppState.activeImportTargetPage = targetPage;
+      document.getElementById('genericFileInput').click();
+    }
+
+    function handleFileSelected(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const content = e.target.result;
+        try {
+          if (file.name.endsWith('.json')) {
+            const data = JSON.parse(content);
+            if (Array.isArray(data)) {
+              window.AppState.visitors = data.concat(window.AppState.visitors);
+              localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+              showToast('JSON 匯入成功', `成功匯入 ${data.length} 筆紀錄。`, 'success');
+              renderDisplayTable();
+              updateAnalyticsCharts();
+            }
+          } else {
+            // Process CSV
+            const lines = content.split('\n');
+            let importedCount = 0;
+            for(let i=1; i<lines.length; i++) {
+              const line = lines[i].trim();
+              if (!line) continue;
+              const cols = line.split(',');
+              if (cols.length >= 4) {
+                const rec = {
+                  id: 'v_imp_' + Date.now() + '_' + i,
+                  teacherName: cols[0] || '匯入老師',
+                  teacherDept: cols[1] || '教務處',
+                  expectedTime: cols[2] || new Date().toISOString().slice(0, 16),
+                  unit: cols[3] || '外部單位',
+                  visitorName: cols[4] || '訪客',
+                  phone: cols[5] || '0900000000',
+                  plateNumber: cols[6] || '無車號',
+                  visitorCount: parseInt(cols[7]) || 1,
+                  purpose: cols[8] || '無備註',
+                  status: 'pending',
+                  createdAt: new Date().toISOString()
+                };
+                window.AppState.visitors.unshift(rec);
+                if (window.syncVisitorToCloud) window.syncVisitorToCloud(rec);
+                importedCount++;
+              }
+            }
+            localStorage.setItem('campus_visitors', JSON.stringify(window.AppState.visitors));
+            showToast('CSV 匯入成功', `已從檔案成功匯入 ${importedCount} 筆資料。`, 'success');
+            renderDisplayTable();
+            updateAnalyticsCharts();
+          }
+        } catch(err) {
+          showToast('檔案解析失敗', '請確認 CSV 或 JSON 格式是否正確。', 'warning');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = ''; // Reset input
+    }
+
+    function exportData(page) {
+      if (page === 'manage') {
+        let csv = '\uFEFF姓名,處室,Gmail信箱,系統權限\n';
+        window.AppState.teachers.forEach(t => {
+          csv += `"${t.name}","${t.dept}","${t.email}","${t.role === 'full' ? '全部權限' : '僅限填寫'}"\n`;
+        });
+        downloadBlob(csv, `校園教師權限名冊_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv;charset=utf-8;');
+        showToast('匯出完成', '已導出教師權限 CSV 名冊。', 'success');
+        return;
+      }
+
+      // Export Visitor Records
+      let csv = '\uFEFF編號,狀態,預計來訪時間,來訪單位,訪客姓名,電話,車牌,人數,通報老師,處室,來訪事由,入校時間,離校時間\n';
+      window.AppState.visitors.forEach((v, idx) => {
+        const statusMap = { pending: '待入校', checked_in: '已入校', checked_out: '已離校' };
+        csv += `"${idx+1}","${statusMap[v.status] || '待報到'}","${v.expectedTime}","${v.unit}","${v.visitorName}","${v.phone}","${v.plateNumber}","${v.visitorCount}","${v.teacherName}","${v.teacherDept}","${v.purpose}","${v.checkInTime||''}","${v.checkOutTime||''}"\n`;
+      });
+
+      downloadBlob(csv, `校園訪客通報紀錄表_${page}_${new Date().toISOString().split('T')[0]}.csv`, 'text/csv;charset=utf-8;');
+      showToast('匯出成功', `已將 ${window.AppState.visitors.length} 筆來訪紀錄匯出為 CSV。`, 'success');
+    }
+
+    function downloadBlob(content, filename, contentType) {
+      const blob = new Blob([content], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+
+    // 7. QR CODE & SCAN SIMULATION MODALS
+    function generateQRCodeCanvas() {
+      const container = document.getElementById('qrcodeCanvas');
+      if (!container) return;
+      container.innerHTML = '';
+      
+      const targetUrl = window.location.href.split('#')[0] + '#qr-scan-entry';
+      if (typeof QRCode !== 'undefined') {
+        new QRCode(container, {
+          text: targetUrl,
+          width: 160,
+          height: 160,
+          colorDark: "#0f172a",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      } else {
+        container.innerHTML = '<div class="p-4 bg-slate-100 text-xs text-slate-500 font-mono">https://campus-visitor.edu.tw/qr</div>';
+      }
+    }
+
+    function openQRModal() {
+      generateQRCodeCanvas();
+      document.getElementById('qrModal').classList.remove('hidden');
+    }
+
+    function closeQRModal() {
+      document.getElementById('qrModal').classList.add('hidden');
+    }
+
+    function copyQRCodeLink() {
+      const link = window.location.href;
+      document.execCommand('copy');
+      showToast('網址已複製', '訪客報到網址已複製至剪貼簿。', 'info');
+    }
+
+    function simulateQRScan() {
+      showToast('掃描成功', '已透過手機 QR Code 載入訪客通報表單！', 'success');
+      switchTab('fill');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openCustomLoginModal() {
+      document.getElementById('loginModal').classList.remove('hidden');
+    }
+
+    function closeCustomLoginModal() {
+      document.getElementById('loginModal').classList.add('hidden');
+    }
+
+    function handleCustomLoginSubmit(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmailInput').value.trim().toLowerCase();
+      
+      const teacher = window.AppState.teachers.find(t => t.email.toLowerCase() === email);
+      if (teacher) {
+        window.AppState.currentUser = { ...teacher, isGuest: false };
+        showToast('Gmail 身分驗證成功', `歡迎！已辨識身分：${teacher.name} (${teacher.dept})`, 'success');
+      } else {
+        // Unknown email -> Guest teacher
+        window.AppState.currentUser = {
+          id: 'guest_teacher',
+          name: email.split('@')[0],
+          dept: '教務處',
+          email: email,
+          role: 'fill',
+          isGuest: false
+        };
+        showToast('身分登入完成', `已登入：${email}`, 'info');
+      }
+
+      updateUserIdentityUI();
+      closeCustomLoginModal();
+    }
+
+
+    // 8. AUDIO ALERT & TOAST SYSTEM
+    function toggleAudioNotice() {
+      window.AppState.audioAlertEnabled = !window.AppState.audioAlertEnabled;
+      const btn = document.getElementById('audioNoticeBtn');
+      if (window.AppState.audioAlertEnabled) {
+        btn.innerHTML = `<i class="fa-solid fa-volume-high mr-1"></i> 提示聲：開啟`;
+        btn.className = 'text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg';
+        showToast('廣播提示', '已開啟警衛室即時音效提示。', 'info');
+      } else {
+        btn.innerHTML = `<i class="fa-solid fa-volume-xmark mr-1"></i> 提示聲：靜音`;
+        btn.className = 'text-xs bg-slate-600 hover:bg-slate-700 text-white px-2.5 py-1 rounded-lg';
+        showToast('廣播提示', '已切換為靜音模式。', 'info');
+      }
+    }
+
+    function playAudioNotice() {
+      if (!window.AppState.audioAlertEnabled) return;
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15); // A5
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      } catch(e) {}
+    }
+
+    function showToast(title, message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      
+      let icon = 'fa-circle-info';
+      let border = 'border-blue-500';
+      let bg = 'bg-slate-900 text-white';
+
+      if (type === 'success') {
+        icon = 'fa-circle-check text-emerald-400';
+        border = 'border-emerald-500';
+      } else if (type === 'warning') {
+        icon = 'fa-triangle-exclamation text-amber-400';
+        border = 'border-amber-500';
+      }
+
+      toast.className = `p-4 rounded-xl shadow-2xl ${bg} border-l-4 ${border} max-w-sm w-full flex items-start space-x-3 text-xs pointer-events-auto transform transition-all duration-300 translate-y-2 opacity-0`;
+      
+      toast.innerHTML = `
+        <i class="fa-solid ${icon} text-base mt-0.5"></i>
+        <div class="flex-1">
+          <div class="font-bold text-sm text-slate-100">${escapeHtml(title)}</div>
+          <div class="text-slate-300 mt-0.5 leading-relaxed">${escapeHtml(message)}</div>
+        </div>
+      `;
+
+      container.appendChild(toast);
+
+      // Animate In
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      // Auto remove
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&raw;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
